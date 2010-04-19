@@ -82,6 +82,39 @@ argument to the script:
 
 Use the '-h' or '--help' switch to see all of the options available.
 
+Out of Office Loop Detection
+============================
+
+`repoze.postoffice` does attempt to address out of office loops. An out of
+office loop can occur when `repoze.postoffice` is used to populate content in
+an application which generates an email to alert users of the new content.
+Essentially, a poorly behaved email client will respond to the new content
+alert email with an out of office reply which in turn causes more content to
+be created and another alert email to be sent. Without some form of loop
+detection, this can lead to a large amount of junk content being generated
+very quickly.
+
+When a new email enters the system, `repoze.postoffice` first checks for some
+headers that could be set by well behaved MTA's to indicate automated responses
+and discards messages which match these known heuristics.  First, the
+non-standard, but widely supported, 'Precedence' header is checked and messages
+with a precedence of 'bulk', 'junk', or 'list' are discarded.  Next
+`repoze.postoffice` will check for the presence of the 'Auto-Submitted' header
+which is described in rfc3834 and is standard, but not yet widely supported.
+Messages containing this header are discarded.
+
+Since many widely used email clients (written by Microsoft) are not well
+behaved enough to properly set the above headers, `repoze.postoffice` also
+checks for the presence of common, English language, out of office or vacation
+message strings in the subject line of the email. This method is obviously
+somewhat hit and miss and only works for subject lines written in English. As
+a last line of defense, `repoze.postoffice` also tracks the frequency of
+incoming mail by email address. When the number of messages arriving from the
+same user surpasses a particular, assumedly inhuman, threshold, a temporary
+block is placed on messages from that user, such that all messages from that
+user are discarded for a certain period of time, hopefully breaking the auto
+reply feedback loop.
+
 Consuming Queues
 ================
 
