@@ -26,15 +26,43 @@ queue sections.  The 'post office' section contains information about the ZODB
 set up as well as the location of the incoming Maildir::
 
   [post office]
+  # Required parameters
   zodb_uri = zconfig://%(here)s/zodb.conf#main
+  maildir = %(here)s/incoming/Maildir
+
+  # Optional parameters
   zodb_path = /postoffice
-  maildir = %(here)s/
+  ooo_loop_frequency = 60 # 1 Hertz
+  ooo_blackout_period = 5 # 5 minutes
+  max_message_size = 500m
 
 `zodb_uri` is interpreted using `repoze.zodbconn` and follows the format laid
 out there.  See: http://docs.repoze.org/zodbconn/narr.html
 
 `zodb_path` is the path in the db to the postoffice queues.  This parameter
 is optional and defaults to '/postoffice'.
+
+`maildir` is the path to the incoming Maildir format folder from which messages
+are pulled.
+
+`ooo_loop_frequency` specifies the threshold frequency of incoming messages
+from the same user to the same queue, in messages per minute. When the
+threshold is reached by a particular user, messages from that user will be
+discarded for period of time in an attempt to break a possible out of office
+auto-reply loop. If not specified, no check is performed on frequency of
+incoming messages.
+
+`ooo_blackout_period` specifies the amount of time, in minutes, for which a
+user's incoming mail will be discarded if a loop detection is in use and the
+user reaches the `ooo_loop_frequency` threshold.  Defaults to 5 minutes.  If
+`ooo_loop_frequency` is not set, this setting has no effect.
+
+`max_message_size` sets the maximum size, in bytes, of incoming messages.
+Messages which exceed this limit will be bounced and the sender will be
+informed via email. The suffixes 'k', 'm' or 'g' may be used to specify that
+the number of bytes is expressed in kilobytes, megabytes or gigabytes,
+respectively. A number without suffix will be interpreted as bytes. If not
+set, no limit will be imposed on incoming message size.
 
 Each message queue is configured in a section with the prefix 'queue:'::
 
