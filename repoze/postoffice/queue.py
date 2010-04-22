@@ -1,9 +1,15 @@
 from BTrees.IOBTree import IOBTree
+from BTrees.OOBTree import OOBTree
 
 from repoze.postoffice.message import Message
 
 import datetime
 import time
+
+class QueuesFolder(OOBTree):
+    """
+    Container for post office queues.
+    """
 
 class Queue(IOBTree):
     """

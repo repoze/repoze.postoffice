@@ -33,7 +33,7 @@ set up as well as the location of the incoming Maildir::
   # Optional parameters
   zodb_path = /postoffice
   ooo_loop_frequency = 60 # 1 Hertz
-  ooo_blackout_period = 5 # 5 minutes
+  ooo_blackout_period = 300 # 5 minutes
   max_message_size = 500m
 
 `zodb_uri` is interpreted using `repoze.zodbconn` and follows the format laid
