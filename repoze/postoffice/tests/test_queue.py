@@ -7,9 +7,9 @@ class TestQueue(unittest.TestCase):
 
     def test_add_and_retrieve_messages(self):
         queue = self._make_one()
-        queue.add('one')
+        queue.add(DummyMessage('one'))
         self.assertEqual(len(queue), 1)
-        queue.add('two')
+        queue.add(DummyMessage('two'))
         self.assertEqual(len(queue), 2)
         self.assertEqual(queue.pop_next(), 'one')
         self.assertEqual(len(queue), 1)
@@ -228,9 +228,20 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(queue.count_quarantined_messages(), 0)
         self.assertRaises(ValueError, queue.remove_from_quarantine, msg)
 
-class DummyMessage(object):
+class TestQueuedMessage(unittest.TestCase):
+    def test_it(self):
+        from repoze.postoffice.queue import _QueuedMessage
+        message = DummyMessage('foobar')
+        queued = _QueuedMessage(message)
+        self.assertEqual(queued.get(), message)
+        queued._v_message = None
+        self.assertEqual(queued.get().get_payload(), 'foobar')
+
+from repoze.postoffice.message import Message
+class DummyMessage(Message):
     def __init__(self, body=None):
-        self.body = body
+        Message.__init__(self)
+        self.set_payload(body)
 
     def __eq__(self, other):
-        return self.body.__eq__(other)
+        return self.get_payload().__eq__(other)

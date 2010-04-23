@@ -1,5 +1,11 @@
 from BTrees.IOBTree import IOBTree
 from BTrees.OOBTree import OOBTree
+from persistent import Persistent
+from ZODB.blob import Blob
+
+import email.generator
+import email.message
+import email.parser
 
 from repoze.postoffice.message import Message
 
@@ -22,6 +28,7 @@ class Queue(IOBTree):
         """
         Add a message to the queue.
         """
+        message = _QueuedMessage(message)
         id = _new_id(self)
         self[id] = message
 
@@ -31,7 +38,7 @@ class Queue(IOBTree):
         """
         key = iter(self.keys()).next()
         message = self.pop(key)
-        return message
+        return message.get()
 
     def bounce(self, message, send,
                bounce_from_addr,
@@ -116,7 +123,7 @@ class Queue(IOBTree):
         quarantine = self._quarantine
         id = _new_id(quarantine)
         message.__name__ = id
-        quarantine[id] = (message, exc_info)
+        quarantine[id] = (_QueuedMessage(message), exc_info)
 
         if send is not None:
             notice = Message()
@@ -136,7 +143,8 @@ class Queue(IOBTree):
         """
         Returns an iterator over the messages currently in the quarantine.
         """
-        return self._quarantine.values()
+        for message, exc_info in self._quarantine.values():
+            yield message.get(), exc_info
 
     def count_quarantined_messages(self):
         """
@@ -153,6 +161,27 @@ class Queue(IOBTree):
             raise ValueError("Message is not in the quarantine.")
         del self._quarantine[id]
         del message.__name__
+
+class _QueuedMessage(Persistent):
+    """
+    Wrapper for storing email messages in queues.  Stores email as flattened
+    bytes in a blob.
+    """
+    _v_message = None  # memcache message once loaded
+
+    def __init__(self, message):
+        assert isinstance(message, email.message.Message), "Not a message."
+        self._v_message = message   # transient attribute
+        self._blob_file = blob = Blob()
+        outfp = blob.open('w')
+        email.generator.Generator(outfp).flatten(message)
+        outfp.close()
+
+    def get(self):
+        if self._v_message is None:
+            parser = email.parser.Parser(Message)
+            self._v_message = parser.parse(self._blob_file.open())
+        return self._v_message
 
 def _new_id(container):
     # Use numeric incrementally increasing ids to preserve FIFO order
