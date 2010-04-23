@@ -1,10 +1,18 @@
+from __future__ import with_statement
+
 from cStringIO import StringIO
 import unittest
 
 class TestAPI(unittest.TestCase):
-    def _make_one(self, fp):
+    def setUp(self):
+        from repoze.postoffice import api
+        self.log = api.log = DummyLogger()
+        self.tx = api.transaction = DummyTransaction()
+        self.root = {}
+
+    def _make_one(self, fp, queues=None, db_path='/postoffice'):
         from repoze.postoffice.api import PostOffice
-        return PostOffice(fp)
+        return PostOffice(fp, DummyDB(self.root, queues, db_path))
 
     def test_ctor_main_defaults(self):
         po = self._make_one(StringIO(
@@ -107,6 +115,99 @@ class TestAPI(unittest.TestCase):
         ))
         self.assertEqual(len(po.configured_queues), 0)
 
+    def test_reconcile_queues_from_scratch(self):
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            "[queue:B]\n"
+            "filters =\n"
+            "\tto_hostname:.exampleB.com\n"
+        ))
+        self.failIf('postoffice' in self.root)
+        po.reconcile_queues()
+        self.failUnless('postoffice' in self.root)
+        queues = self.root['postoffice']
+        self.failUnless('A' in queues)
+        self.failUnless('B' in queues)
+        self.failIf(self.log.warnings)
+        self.failUnless(self.tx.committed)
+
+    def test_reconcile_queues_rm_old(self):
+        queues = {'foo': {}}
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+        ), queues)
+        self.failIf('A' in queues)
+        self.failUnless('foo' in queues)
+        po.reconcile_queues()
+        self.failUnless('A' in queues)
+        self.failIf('foo' in queues)
+        self.failIf(self.log.warnings, self.log.warnings)
+        self.failUnless(self.tx.committed)
+
+    def test_reconcile_queues_dont_remove_nonempty_queue(self):
+        queues = {'foo': {'bar': 'baz'}}
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+        ), queues)
+        self.failIf('A' in queues)
+        self.failUnless('foo' in queues)
+        po.reconcile_queues()
+        self.failUnless('A' in queues)
+        self.failUnless('foo' in queues)
+        self.assertEqual(len(self.log.warnings), 1)
+        self.failUnless(self.tx.committed)
+
+    def test_reconcile_queues_custom_db_path(self):
+        queues = {}
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "zodb_path = /path/to/post/office\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            "[queue:B]\n"
+            "filters =\n"
+            "\tto_hostname:.exampleB.com\n"
+        ), queues, '/path/to/post/office')
+        self.failIf('A' in queues)
+        self.failIf('B' in queues)
+        po.reconcile_queues()
+        self.failUnless('A' in queues)
+        self.failUnless('B' in queues)
+        self.failIf(self.log.warnings)
+        self.failUnless(self.tx.committed)
+
+    def test_context_manager_aborts_transaction_on_exception(self):
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+        ))
+        try:
+            with po._get_root() as root:
+                raise Exception("Testing")
+        except:
+            pass
+        self.failIf(self.tx.committed)
+        self.failUnless(self.tx.aborted)
+
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int
@@ -151,3 +252,40 @@ class DummyConfig(object):
 
     def has_option(self, section, name):
         return self.answer is not None
+
+class DummyDB(object):
+    def __init__(self, dbroot, queues, db_path):
+        self.dbroot = dbroot
+        self.queues = queues
+        self.db_path = db_path.strip('/').split('/')
+
+    def __call__(self, uri):
+        return self
+
+    def open(self):
+        return self
+
+    def root(self):
+        node = self.dbroot
+        for name in self.db_path[:-1]:
+            node[name] = {}
+            node = node[name]
+        node[self.db_path[-1]] = self.queues
+        return self.dbroot
+
+class DummyLogger(object):
+    def __init__(self):
+        self.warnings = []
+
+    def warn(self, msg):
+        self.warnings.append(msg)
+
+class DummyTransaction(object):
+    committed = False
+    aborted = False
+
+    def commit(self):
+        self.committed = True
+
+    def abort(self):
+        self.aborted = True

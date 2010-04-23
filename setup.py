@@ -23,6 +23,7 @@ CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
 INSTALL_REQUIRES = [
     'ZODB3',
+    'repoze.zodbconn',
 ]
 
 setup(name='repoze.postoffice',

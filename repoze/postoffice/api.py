@@ -1,27 +1,41 @@
+from __future__ import with_statement
+
 from cStringIO import StringIO
 from ConfigParser import ConfigParser
+from contextlib import contextmanager
+import logging
 import os
 import shutil
+import transaction
 
 from repoze.postoffice.filters import ToHostnameFilter
+from repoze.postoffice.queue import QueuesFolder
+from repoze.postoffice.queue import Queue
+from repoze.zodbconn.uri import db_from_uri
 
 MAIN_SECTION = 'post office'
 _marker = object()
+
+log = logging.getLogger('repoze.postoffice')
 
 class PostOffice(object):
     """
     Provides server side API for repoze.postoffice.
     """
-    def __init__(self, fp):
+    def __init__(self, fp, db_from_uri=db_from_uri):
         """
         Initialize from configuration file.
         """
+        # db_from_uri is passed in for unit testing.
         fp = _load_fp(fp)
         self._section_indices = _get_section_indices(fp)
         fp.seek(0)
         config = ConfigParser()
         config.readfp(fp)
         self._init_main_section(config)
+        self._get_root = _RootContextManagerFactory(
+            self.zodb_uri, db_from_uri, self.zodb_path
+        )
         self._init_queues(config)
 
     def _init_main_section(self, config):
@@ -46,6 +60,10 @@ class PostOffice(object):
             if section.startswith('queue:'):
                 queues.append(self._init_queue(config, section))
 
+        # ConfigParser doesn't preserve section ordering, but we're interested
+        # processing queues in the order they appear in the config file, so
+        # we've done our own scan to pick out the sections and their relative
+        # indices and use that now to sort the queues.
         section_indices = self._section_indices
         queues.sort(key=lambda q: section_indices[q['section']])
         self.configured_queues = queues
@@ -71,6 +89,36 @@ class PostOffice(object):
             return ToHostnameFilter(config.strip())
 
         raise ValueError("Unknown filter type: %s" % name)
+
+    def reconcile_queues(self):
+        """
+        Reconciles queues found in configuration with queues in database.  If
+        new queues have been added to the configuration, those queues are
+        added to the database.  If old queues have been removed from the
+        configuration, they are removed from the database if they are empty.
+        If a queue has been removed from the configuration but still has
+        queued messages a warning is logged and queue is not removed.
+        """
+        # Reconcile configured queues with queues in db
+        configured = self.configured_queues
+        with self._get_root() as root:
+            # Create new queues
+            for queue in configured:
+                name = queue['name']
+                if name not in root:
+                    root[name] = queue
+
+            # Remove old queues if empty
+            configured_names = set([q['name'] for q in configured])
+            for name, queue in root.items():
+                if name not in configured_names:
+                    if len(queue):
+                        log.warn(
+                            "Queue removed from configuration still has "
+                            "messages: %s" % name
+                        )
+                    else:
+                        del root[name]
 
 def _get_opt(config, section, name, default=_marker):
     if config.has_option(section, name):
@@ -136,3 +184,35 @@ def _get_section_indices(fp):
         index += 1
 
     return indices
+
+class _RootContextManagerFactory(object):
+    """
+    Gets the root postoffice object, an instance of
+    `repoze.postoffice.queue.QueuesFolder`.  If folder does not exist it is
+    created.  It's parent, however, must already exist if a nested zodb_path
+    is used.
+    """
+    def __init__(self, uri, db_from_uri, path):
+        self.uri = uri
+        self.db_from_uri = db_from_uri
+        self.path = path.strip('/').split('/')
+
+    @contextmanager
+    def __call__(self):
+        db = self.db_from_uri(self.uri)
+        conn = db.open()
+        parent = conn.root()
+        for name in self.path[:-1]:
+            parent = parent[name]
+        name = self.path[-1]
+        try:
+            folder = parent.get(name)
+            if folder is None:
+                folder = QueuesFolder()
+                parent[name] = folder
+            yield folder
+        except:
+            transaction.abort()
+            raise
+        else:
+            transaction.commit()
