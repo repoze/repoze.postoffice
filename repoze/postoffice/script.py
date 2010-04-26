@@ -1,7 +1,10 @@
 from optparse import OptionParser
 from repoze.postoffice.api import PostOffice
+import logging
 import os
 import sys
+
+logging.basicConfig()
 
 class ConsoleScript(object):
     """
@@ -13,6 +16,10 @@ class ConsoleScript(object):
         parser.add_option('-C', '--config', dest='config', default=None,
                           help='Path to configuration ini file.',
                           metavar='FILE')
+        parser.add_option('-v', '--verbose', dest='verbose', default=False,
+                          action='store_true',
+                          help='Print info level log messages')
+
         options, args = parser.parse_args(argv)
         if args:
             parser.error('Extra arguments given.')
@@ -23,12 +30,17 @@ class ConsoleScript(object):
         if config is None:
             parser.error('Unable to find configuration file.')
 
+        log_level = logging.WARN
+        if options.verbose:
+            log_level = logging.INFO
+        self.log = logging.getLogger('repoze.postoffice')
+        self.log.setLevel(log_level)
         self.config = config
 
     def __call__(self):
         po = PostOffice(self.config)
-        po.reconcile_queues()
-        po.import_messages()
+        po.reconcile_queues(self.log)
+        po.import_messages(self.log)
 
 
 def _find_config():

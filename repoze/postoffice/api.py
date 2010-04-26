@@ -17,8 +17,6 @@ from repoze.zodbconn.uri import db_from_uri
 MAIN_SECTION = 'post office'
 _marker = object()
 
-log = logging.getLogger('repoze.postoffice')
-
 class PostOffice(object):
     """
     Provides server side API for repoze.postoffice.
@@ -98,7 +96,7 @@ class PostOffice(object):
 
         raise ValueError("Unknown filter type: %s" % name)
 
-    def reconcile_queues(self):
+    def reconcile_queues(self, log=None):
         """
         Reconciles queues found in configuration with queues in database.  If
         new queues have been added to the configuration, those queues are
@@ -115,20 +113,25 @@ class PostOffice(object):
                 name = queue['name']
                 if name not in root:
                     root[name] = Queue()
+                    if log is not None:
+                        log.info('Created new postoffice queue: %s' % name)
 
             # Remove old queues if empty
             configured_names = set([q['name'] for q in configured])
             for name, queue in root.items():
                 if name not in configured_names:
                     if len(queue):
-                        log.warn(
-                            "Queue removed from configuration still has "
-                            "messages: %s" % name
-                        )
+                        if log is not None:
+                            log.warn(
+                                "Queue removed from configuration still has "
+                                "messages: %s" % name
+                            )
                     else:
+                        if log is not None:
+                            log.info('Removed old postoffice queue: %s' % name)
                         del root[name]
 
-    def import_messages(self):
+    def import_messages(self, log=None):
         """
         Imports messages from an external maildir, matches them to queues and
         either stores or discards each message depending on whether it matches
@@ -139,10 +142,16 @@ class PostOffice(object):
         keys = list(maildir.keys())
         keys.sort()
         for key in keys:
-            self._import_message(maildir.get_message(key))
+            self._import_message(maildir.get_message(key), log)
             maildir.remove(key)
+        if log is not None:
+            n = len(keys)
+            if n == 1:
+                log.info("Processed one message.")
+            else:
+                log.info("Processed %d messages." % n)
 
-    def _import_message(self, message):
+    def _import_message(self, message, log):
         for configured in self.configured_queues:
             filters = configured['filters']
             if not filters or not _filters_match(filters, message):
@@ -150,8 +159,19 @@ class PostOffice(object):
 
             # Matches queue
             with self._get_root() as queues:
-                queue = queues[configured['name']]
+                name = configured['name']
+                queue = queues[name]
                 queue.add(message)
+                if log is not None:
+                    log.info("Message added to queue, %s: %s" %
+                             (name, _log_message(message))
+                             )
+                break
+
+        else:
+            if log is not None:
+                log.info("Message discarded, no matching queues: %s" %
+                         _log_message(message))
 
 
 def _get_opt(config, section, name, default=_marker):
@@ -224,6 +244,18 @@ def _filters_match(filters, message):
         if not filter_(message):
             return False
     return True
+
+def _log_message(message):
+    info = 'Message '
+    if 'From' in message:
+        info += 'From: %s' % message['From']
+    if 'To' in message:
+        info += 'To: %s' % message['To']
+    if 'Subject' in message:
+        info += 'Subject: %s' % message['Subject']
+    if 'Message-Id' in message:
+        info += 'Message-Id: %s' % message['Message-Id']
+    return info
 
 class _RootContextManagerFactory(object):
     """

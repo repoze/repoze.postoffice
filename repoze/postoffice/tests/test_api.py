@@ -6,7 +6,6 @@ import unittest
 class TestAPI(unittest.TestCase):
     def setUp(self):
         from repoze.postoffice import api
-        self.log = api.log = DummyLogger()
         self.tx = api.transaction = DummyTransaction()
         self.root = {}
 
@@ -139,10 +138,10 @@ class TestAPI(unittest.TestCase):
         queues = self.root['postoffice']
         self.failUnless('A' in queues)
         self.failUnless('B' in queues)
-        self.failIf(self.log.warnings)
         self.failUnless(self.tx.committed)
 
     def test_reconcile_queues_rm_old(self):
+        log = DummyLogger()
         queues = {'foo': {}}
         po = self._make_one(StringIO(
             "[post office]\n"
@@ -154,13 +153,14 @@ class TestAPI(unittest.TestCase):
         ), queues)
         self.failIf('A' in queues)
         self.failUnless('foo' in queues)
-        po.reconcile_queues()
+        po.reconcile_queues(log)
         self.failUnless('A' in queues)
         self.failIf('foo' in queues)
-        self.failIf(self.log.warnings, self.log.warnings)
         self.failUnless(self.tx.committed)
+        self.assertEqual(len(log.infos), 2)
 
     def test_reconcile_queues_dont_remove_nonempty_queue(self):
+        log = DummyLogger()
         queues = {'foo': {'bar': 'baz'}}
         po = self._make_one(StringIO(
             "[post office]\n"
@@ -172,10 +172,11 @@ class TestAPI(unittest.TestCase):
         ), queues)
         self.failIf('A' in queues)
         self.failUnless('foo' in queues)
-        po.reconcile_queues()
+        po.reconcile_queues(log)
         self.failUnless('A' in queues)
         self.failUnless('foo' in queues)
-        self.assertEqual(len(self.log.warnings), 1)
+        self.assertEqual(len(log.warnings), 1)
+        self.assertEqual(len(log.infos), 1)
         self.failUnless(self.tx.committed)
 
     def test_reconcile_queues_custom_db_path(self):
@@ -197,7 +198,6 @@ class TestAPI(unittest.TestCase):
         po.reconcile_queues()
         self.failUnless('A' in queues)
         self.failUnless('B' in queues)
-        self.failIf(self.log.warnings)
         self.failUnless(self.tx.committed)
 
     def test_context_manager_aborts_transaction_on_exception(self):
@@ -215,6 +215,7 @@ class TestAPI(unittest.TestCase):
         self.failUnless(self.tx.aborted)
 
     def test_import_messages(self):
+        log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
         msg2 = DummyMessage("two")
@@ -241,7 +242,7 @@ class TestAPI(unittest.TestCase):
             messages=[msg1, msg2, msg3, msg4]
             )
         po.reconcile_queues()
-        po.import_messages()
+        po.import_messages(log)
 
         self.assertEqual(len(self.messages), 0)
         A = queues['A']
@@ -251,6 +252,34 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(B), 2)
         self.assertEqual(B.pop_next(), 'three')
         self.assertEqual(B.pop_next(), 'four')
+        self.assertEqual(len(log.infos), 5)
+
+    def test_import_one_message(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A.pop_next(), 'one')
+        self.assertEqual(len(log.infos), 2)
 
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
@@ -320,9 +349,13 @@ class DummyDB(object):
 class DummyLogger(object):
     def __init__(self):
         self.warnings = []
+        self.infos = []
 
     def warn(self, msg):
         self.warnings.append(msg)
+
+    def info(self, msg):
+        self.infos.append(msg)
 
 class DummyTransaction(object):
     committed = False
@@ -359,6 +392,9 @@ class DummyMessage(Message):
     def __init__(self, body=None):
         Message.__init__(self)
         self.set_payload(body)
+        self['From'] = 'Woody Woodpecker <ww@toonz.net>'
+        self['Subject'] = 'Double date tonight'
+        self['Message-Id'] = '12389jdfkj98'
 
     def __eq__(self, other):
         return self.get_payload().__eq__(other)
