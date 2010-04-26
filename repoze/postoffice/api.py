@@ -246,16 +246,16 @@ def _filters_match(filters, message):
     return True
 
 def _log_message(message):
-    info = 'Message '
+    info = ['Message']
     if 'From' in message:
-        info += 'From: %s' % message['From']
+        info.append('From: %s' % message['From'])
     if 'To' in message:
-        info += 'To: %s' % message['To']
+        info.append('To: %s' % message['To'])
     if 'Subject' in message:
-        info += 'Subject: %s' % message['Subject']
+        info.append('Subject: %s' % message['Subject'])
     if 'Message-Id' in message:
-        info += 'Message-Id: %s' % message['Message-Id']
-    return info
+        info.append('Message-Id: %s' % message['Message-Id'])
+    return ' '.join(info)
 
 class _RootContextManagerFactory(object):
     """
