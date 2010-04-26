@@ -8,10 +8,6 @@ class ConsoleScript(object):
     Populates postoffice queues from a Maildir.
     """
 
-    # Overridable for testing
-    OptionParser = OptionParser
-    PostOffice = PostOffice
-
     def __init__(self, argv=sys.argv[1:], find_config=None):
         parser = OptionParser(description=self.__doc__)
         parser.add_option('-C', '--config', dest='config', default=None,
@@ -35,7 +31,7 @@ class ConsoleScript(object):
         po.import_messages()
 
 
-def _find_config():  #pragma NO COVERAGE
+def _find_config():
     path = os.path.abspath('postoffice.ini')
     if os.path.exists(path):
         return path
@@ -53,8 +49,8 @@ def _find_config():  #pragma NO COVERAGE
     if os.path.exists(path):
         return path
 
-def main(): #pragma NO COVERAGE
+def main():
     return ConsoleScript()()
 
-if __name__ == '__main__':  #pragma NO COVERAGE
+if __name__ == '__main__':
     main()
