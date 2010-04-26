@@ -4,6 +4,7 @@ from cStringIO import StringIO
 from ConfigParser import ConfigParser
 from contextlib import contextmanager
 import logging
+from mailbox import Maildir
 import os
 import shutil
 import transaction
@@ -22,11 +23,14 @@ class PostOffice(object):
     """
     Provides server side API for repoze.postoffice.
     """
+
+    # Overridable for testing
+    Maildir = Maildir
+
     def __init__(self, fp, db_from_uri=db_from_uri):
         """
         Initialize from configuration file.
         """
-        # db_from_uri is passed in for unit testing.
         fp = _load_fp(fp)
         self._section_indices = _get_section_indices(fp)
         fp.seek(0)
@@ -106,7 +110,7 @@ class PostOffice(object):
             for queue in configured:
                 name = queue['name']
                 if name not in root:
-                    root[name] = queue
+                    root[name] = Queue()
 
             # Remove old queues if empty
             configured_names = set([q['name'] for q in configured])
@@ -119,6 +123,32 @@ class PostOffice(object):
                         )
                     else:
                         del root[name]
+
+    def import_messages(self):
+        """
+        Imports messages from an external maildir, matches them to queues and
+        either stores or discards each message depending on whether it matches
+        a queue definition.  Once a message is imported it is removed from the
+        maildir.
+        """
+        maildir = self.Maildir(self.maildir, factory=None, create=True)
+        keys = list(maildir.keys())
+        keys.sort()
+        for key in keys:
+            self._import_message(maildir.get_message(key))
+            maildir.remove(key)
+
+    def _import_message(self, message):
+        for configured in self.configured_queues:
+            filters = configured['filters']
+            if not filters or not _filters_match(filters, message):
+                continue
+
+            # Matches queue
+            with self._get_root() as queues:
+                queue = queues[configured['name']]
+                queue.add(message)
+
 
 def _get_opt(config, section, name, default=_marker):
     if config.has_option(section, name):
@@ -184,6 +214,12 @@ def _get_section_indices(fp):
         index += 1
 
     return indices
+
+def _filters_match(filters, message):
+    for filter_ in filters:
+        if not filter_(message):
+            return False
+    return True
 
 class _RootContextManagerFactory(object):
     """

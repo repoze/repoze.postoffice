@@ -31,3 +31,9 @@ class TestToHostnameFilter(unittest.TestCase):
         msg['To'] = 'Chris <chris@example.com>'
         self.failUnless(fut(msg))
 
+    def test_case_insensitive(self):
+        fut = self._make_one('example.com')
+        msg = {}
+        self.failIf(fut(msg))
+        msg['To'] = 'chris@Example.com'
+        self.failUnless(fut(msg))

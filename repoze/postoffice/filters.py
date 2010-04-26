@@ -11,13 +11,13 @@ class ToHostnameFilter(object):
         if 'To' not in message:
             return False
 
-        addr = message['To']
+        addr = message['To'].lower()
         lt = addr.find('<')
         if lt != -1:
             addr = addr[lt+1:addr.rindex('>')]
         hostname = addr.split('@')[1]
 
-        expr = self.expr
+        expr = self.expr.lower()
         if expr.startswith('.'):
             return hostname.endswith(expr[1:])
         return hostname == expr

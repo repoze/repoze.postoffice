@@ -10,9 +10,12 @@ class TestAPI(unittest.TestCase):
         self.tx = api.transaction = DummyTransaction()
         self.root = {}
 
-    def _make_one(self, fp, queues=None, db_path='/postoffice'):
+    def _make_one(self, fp, queues=None, db_path='/postoffice', messages=None):
         from repoze.postoffice.api import PostOffice
-        return PostOffice(fp, DummyDB(self.root, queues, db_path))
+        po = PostOffice(fp, DummyDB(self.root, queues, db_path))
+        if messages:
+            po.Maildir, self.messages = DummyMaildirFactory(messages)
+        return po
 
     def test_ctor_main_defaults(self):
         po = self._make_one(StringIO(
@@ -208,6 +211,44 @@ class TestAPI(unittest.TestCase):
         self.failIf(self.tx.committed)
         self.failUnless(self.tx.aborted)
 
+    def test_import_messages(self):
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg2 = DummyMessage("two")
+        msg2['To'] = 'dummy@foo.exampleA.com'
+        msg3 = DummyMessage("three")
+        msg3['To'] = 'dummy@exampleB.com'
+        msg4 = DummyMessage("four")
+        msg4['To'] = 'dummy@foo.exampleb.com'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            "[queue:B]\n"
+            "filters =\n"
+            "\tto_hostname:.exampleB.com\n"
+            ),
+            queues=queues,
+            messages=[msg1, msg2, msg3, msg4]
+            )
+        po.reconcile_queues()
+        po.import_messages()
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A.pop_next(), 'one')
+        B = queues['B']
+        self.assertEqual(len(B), 2)
+        self.assertEqual(B.pop_next(), 'three')
+        self.assertEqual(B.pop_next(), 'four')
+
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int
@@ -289,3 +330,32 @@ class DummyTransaction(object):
 
     def abort(self):
         self.aborted = True
+
+def DummyMaildirFactory(messages):
+    messages = dict(zip(xrange(len(messages)), messages))
+
+    class DummyMaildir(object):
+        def __init__(self, path, factory, create):
+            self.path = path
+            self.factory = factory
+            self.create = create
+
+        def keys(self):
+            return range(len(messages))
+
+        def get_message(self, key):
+            return messages[key]
+
+        def remove(self, key):
+            del messages[key]
+
+    return DummyMaildir, messages
+
+from repoze.postoffice.message import Message
+class DummyMessage(Message):
+    def __init__(self, body=None):
+        Message.__init__(self)
+        self.set_payload(body)
+
+    def __eq__(self, other):
+        return self.get_payload().__eq__(other)
