@@ -12,7 +12,10 @@ class TestAPI(unittest.TestCase):
 
     def _make_one(self, fp, queues=None, db_path='/postoffice', messages=None):
         from repoze.postoffice.api import PostOffice
-        po = PostOffice(fp, DummyDB(self.root, queues, db_path))
+        def dummy_open(fname):
+            return fp
+        po = PostOffice('postoffice.ini', DummyDB(self.root, queues, db_path),
+                        dummy_open)
         if messages:
             po.Maildir, self.messages = DummyMaildirFactory(messages)
         return po

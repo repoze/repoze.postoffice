@@ -27,14 +27,16 @@ class PostOffice(object):
     # Overridable for testing
     Maildir = Maildir
 
-    def __init__(self, fp, db_from_uri=db_from_uri):
+    def __init__(self, filename, db_from_uri=db_from_uri, open=open):
         """
         Initialize from configuration file.
         """
-        fp = _load_fp(fp)
+        # db_from_uri and open passed in for unittesting
+        here = os.path.dirname(os.path.abspath(filename))
+        fp = _load_fp(open(filename))
         self._section_indices = _get_section_indices(fp)
         fp.seek(0)
-        config = ConfigParser()
+        config = ConfigParser(defaults=dict(here=here))
         config.readfp(fp)
         self._init_main_section(config)
         self._get_root = _RootContextManagerFactory(
@@ -81,6 +83,8 @@ class PostOffice(object):
                                 config.get(section, option)
                                 .strip().split('\n')]:
                     filters.append(self._init_filter(filter_))
+            elif option =='here':
+                pass
             else:
                 raise ValueError('Unknown config parameter for queue: %s' %
                                  option)

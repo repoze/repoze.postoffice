@@ -50,6 +50,7 @@ setup(name='repoze.postoffice',
       test_suite="repoze.postoffice",
       entry_points = """\
         [console_scripts]
+        postoffice=repoze.postoffice.script:main
       """
       )
 
