@@ -159,8 +159,8 @@ instance::
   import transaction
 
   ZODB_URI = zconfig://%(here)s/zodb.conf#main
-
-  queue = open_queue(ZODB_URI, path='/postoffice')
+  queue_name = 'my queue'
+  queue = open_queue(ZODB_URI, queue_name, path='/postoffice')
   while queue:
       message = queue.pop_next()
       if not validate_message(message):

@@ -237,6 +237,20 @@ class TestQueuedMessage(unittest.TestCase):
         queued._v_message = None
         self.assertEqual(queued.get().get_payload(), 'foobar')
 
+class Test_open_queue(unittest.TestCase):
+    def _monkey_patch(self, queues):
+        from repoze.postoffice import queue as module
+        module.db_from_uri = DummyDB({}, queues)
+
+    def _call_fut(self, name):
+        from repoze.postoffice.queue import open_queue
+        return open_queue('dummy_uri', name)
+
+    def test_it(self):
+        q = 'one'
+        self._monkey_patch(dict(one=q))
+        self.assertEqual(self._call_fut('one'), q)
+
 from repoze.postoffice.message import Message
 class DummyMessage(Message):
     def __init__(self, body=None):
@@ -245,3 +259,19 @@ class DummyMessage(Message):
 
     def __eq__(self, other):
         return self.get_payload().__eq__(other)
+
+class DummyDB(object):
+    def __init__(self, dbroot, queues):
+        self.dbroot = dbroot
+        self.queues = queues
+        dbroot['postoffice'] = queues
+
+    def __call__(self, uri):
+        assert uri == 'dummy_uri'
+        return self
+
+    def open(self):
+        return self
+
+    def root(self):
+        return self.dbroot

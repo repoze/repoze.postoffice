@@ -8,9 +8,18 @@ import email.message
 import email.parser
 
 from repoze.postoffice.message import Message
+from repoze.zodbconn.uri import db_from_uri
 
 import datetime
 import time
+
+def open_queue(zodb_uri, queue_name, path='postoffice'):
+    db = db_from_uri(zodb_uri)
+    conn = db.open()
+    queues = conn.root()
+    for name in path.strip('/').split('/'):
+        queues = queues[name]
+    return queues[queue_name]
 
 class QueuesFolder(OOBTree):
     """
