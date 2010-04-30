@@ -26,28 +26,32 @@ class QueuesFolder(OOBTree):
     Container for post office queues.
     """
 
-class Queue(IOBTree):
+class Queue(Persistent):
     """
     Implements a first in first out (FIFO) message queue.
     """
     def __init__(self):
         self._quarantine = IOBTree()
+        self._messages = IOBTree()
 
     def add(self, message):
         """
         Add a message to the queue.
         """
         message = _QueuedMessage(message)
-        id = _new_id(self)
-        self[id] = message
+        id = _new_id(self._messages)
+        self._messages[id] = message
 
     def pop_next(self):
         """
         Retrieve the next message in the queue, removing it from the queue.
         """
-        key = iter(self.keys()).next()
-        message = self.pop(key)
+        key = iter(self._messages.keys()).next()
+        message = self._messages.pop(key)
         return message.get()
+
+    def __len__(self):
+        return self._messages.__len__()
 
     def bounce(self, message, send,
                bounce_from_addr,

@@ -9,12 +9,14 @@ class TestQueue(unittest.TestCase):
         queue = self._make_one()
         queue.add(DummyMessage('one'))
         self.assertEqual(len(queue), 1)
+        self.failUnless(queue)
         queue.add(DummyMessage('two'))
         self.assertEqual(len(queue), 2)
         self.assertEqual(queue.pop_next(), 'one')
         self.assertEqual(len(queue), 1)
         self.assertEqual(queue.pop_next(), 'two')
         self.assertEqual(len(queue), 0)
+        self.failIf(queue)
 
     def test_bounce_generic_message(self):
         import base64
