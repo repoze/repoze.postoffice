@@ -104,7 +104,7 @@ class Queue(Persistent):
                                 )
         send(bounce_from_addr, toaddrs, bounce_message)
 
-    def quarantine(self, message, exc_info, send=None, notice_from=None):
+    def quarantine(self, message, error, send=None, notice_from=None):
         """
         Adds a message and corresponding exception info to the 'quarantine'.
         If an application attempts to process a message and encounters an
@@ -136,7 +136,7 @@ class Queue(Persistent):
         quarantine = self._quarantine
         id = _new_id(quarantine)
         message.__name__ = id
-        quarantine[id] = (_QueuedMessage(message), exc_info)
+        quarantine[id] = (_QueuedMessage(message), error)
 
         if send is not None:
             notice = Message()
@@ -156,8 +156,8 @@ class Queue(Persistent):
         """
         Returns an iterator over the messages currently in the quarantine.
         """
-        for message, exc_info in self._quarantine.values():
-            yield message.get(), exc_info
+        for message, error in self._quarantine.values():
+            yield message.get(), error
 
     def count_quarantined_messages(self):
         """

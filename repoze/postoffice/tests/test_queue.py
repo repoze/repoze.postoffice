@@ -137,12 +137,12 @@ class TestQueue(unittest.TestCase):
         queue.quarantine(DummyMessage('Woopsy!'), ('IRCC', 'FWIW', 'ROTFLMAO'))
         msgs = list(queue.get_quarantined_messages())
         self.assertEqual(len(msgs), 2)
-        msg, exc_info = msgs.pop(0)
+        msg, error = msgs.pop(0)
         self.assertEqual(msg, 'Oh nos!')
-        self.assertEqual(exc_info, ('OMG', 'WTH', '???'))
-        msg, exc_info = msgs.pop(0)
+        self.assertEqual(error, ('OMG', 'WTH', '???'))
+        msg, error = msgs.pop(0)
         self.assertEqual(msg, 'Woopsy!')
-        self.assertEqual(exc_info, ('IRCC', 'FWIW', 'ROTFLMAO'))
+        self.assertEqual(error, ('IRCC', 'FWIW', 'ROTFLMAO'))
 
     def test_quarantine_notice_missing_fromaddr(self):
         queue = self._make_one()
@@ -214,12 +214,12 @@ class TestQueue(unittest.TestCase):
         queue.remove_from_quarantine(msg)
         msgs = list(queue.get_quarantined_messages())
         self.assertEqual(len(msgs), 2)
-        msg, exc_info = msgs.pop(0)
+        msg, error = msgs.pop(0)
         self.assertEqual(msg, 'Oh nos!')
-        self.assertEqual(exc_info, ('OMG', 'WTH', '???'))
-        msg, exc_info = msgs.pop(0)
+        self.assertEqual(error, ('OMG', 'WTH', '???'))
+        msg, error = msgs.pop(0)
         self.assertEqual(msg, 'Woopsy!')
-        self.assertEqual(exc_info, ('IRCC', 'FWIW', 'ROTFLMAO'))
+        self.assertEqual(error, ('IRCC', 'FWIW', 'ROTFLMAO'))
 
     def test_remove_from_quarantine_not_in_quarantine(self):
         msg = DummyMessage('Oops, my bad')
