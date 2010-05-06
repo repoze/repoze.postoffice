@@ -37,3 +37,8 @@ class TestToHostnameFilter(unittest.TestCase):
         self.failIf(fut(msg))
         msg['To'] = 'chris@Example.com'
         self.failUnless(fut(msg))
+
+    def test_not_an_address(self):
+        fut = self._make_one('example.com')
+        msg = {'To': 'undisclosed recipients;;'}
+        self.failIf(fut(msg))

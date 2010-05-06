@@ -12,6 +12,9 @@ class ToHostnameFilter(object):
             return False
 
         addr = message['To'].lower()
+        if '@' not in addr:
+            return False
+
         lt = addr.find('<')
         if lt != -1:
             addr = addr[lt+1:addr.rindex('>')]
