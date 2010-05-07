@@ -375,6 +375,7 @@ def DummyMaildirFactory(messages):
             self.path = path
             self.factory = factory
             self.create = create
+            self.folders = {}
 
         def keys(self):
             return range(len(messages))
@@ -384,6 +385,16 @@ def DummyMaildirFactory(messages):
 
         def remove(self, key):
             del messages[key]
+
+        def get_folder(self, name):
+            if name not in self.folders:
+                from mailbox import NoSuchMailboxError
+                raise NoSuchMailboxError(name)
+            return self.folders[name]
+
+        def add_folder(self, name):
+            folder = self.folders[name] = set()
+            return folder
 
     return DummyMaildir, messages
 
@@ -398,3 +409,6 @@ class DummyMessage(Message):
 
     def __eq__(self, other):
         return self.get_payload().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.get_payload())

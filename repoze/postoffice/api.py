@@ -3,8 +3,10 @@ from __future__ import with_statement
 from cStringIO import StringIO
 from ConfigParser import ConfigParser
 from contextlib import contextmanager
+import datetime
 import logging
 from mailbox import Maildir
+from mailbox import NoSuchMailboxError
 import os
 import shutil
 import transaction
@@ -142,8 +144,9 @@ class PostOffice(object):
         keys = list(maildir.keys())
         keys.sort()
         for key in keys:
-            self._import_message(maildir.get_message(key), log)
-            maildir.remove(key)
+            message = maildir.get_message(key)
+            self._import_message(message, log)
+            self._archive_message(maildir, message, key)
         if log is not None:
             n = len(keys)
             if n == 1:
@@ -173,6 +176,16 @@ class PostOffice(object):
                 log.info("Message discarded, no matching queues: %s" %
                          _log_message(message))
 
+    def _archive_message(self, maildir, message, key):
+        # XXX It would be nice to wire into transaction with a data manager
+        today = datetime.date.today().timetuple()[:3]
+        name = '%4d.%02d.%02d' % today
+        try:
+            folder = maildir.get_folder(name)
+        except NoSuchMailboxError:
+            folder = maildir.add_folder(name)
+        folder.add(message)
+        maildir.remove(key)
 
 def _get_opt(config, section, name, default=_marker):
     if config.has_option(section, name):
