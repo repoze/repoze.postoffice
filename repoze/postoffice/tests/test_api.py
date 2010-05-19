@@ -331,11 +331,14 @@ class DummyDB(object):
         self.dbroot = dbroot
         self.queues = queues
         self.db_path = db_path.strip('/').split('/')
+        self.opened = False
+        self.closed = False
 
     def __call__(self, uri):
         return self
 
     def open(self):
+        self.opened = True
         return self
 
     def root(self):
@@ -345,6 +348,9 @@ class DummyDB(object):
             node = node[name]
         node[self.db_path[-1]] = self.queues
         return self.dbroot
+
+    def close(self):
+        self.closed = True
 
 class DummyLogger(object):
     def __init__(self):

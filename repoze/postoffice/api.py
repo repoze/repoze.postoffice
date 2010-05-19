@@ -301,3 +301,6 @@ class _RootContextManagerFactory(object):
             raise
         else:
             transaction.commit()
+        finally:
+            conn.close()
+
