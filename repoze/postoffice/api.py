@@ -303,4 +303,5 @@ class _RootContextManagerFactory(object):
             transaction.commit()
         finally:
             conn.close()
+            db.close()
 
