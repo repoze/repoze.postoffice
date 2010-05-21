@@ -19,7 +19,24 @@ def open_queue(zodb_uri, queue_name, path='postoffice'):
     queues = conn.root()
     for name in path.strip('/').split('/'):
         queues = queues[name]
-    return queues[queue_name]
+    return queues[queue_name], _Closer(db, conn)
+
+class _Closer(object):
+    def __init__(self, db, conn):
+        self.closed = False
+        self.db = db
+        self.conn = conn
+
+    def __call__(self):
+        self.__del__()
+
+    def __del__(self):
+        if not self.closed:
+            self.conn.close()
+            del self.conn
+            self.db.close()
+            del self.db
+            self.closed = True
 
 class QueuesFolder(OOBTree):
     """

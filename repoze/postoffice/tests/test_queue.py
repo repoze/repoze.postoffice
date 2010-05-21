@@ -242,7 +242,8 @@ class TestQueuedMessage(unittest.TestCase):
 class Test_open_queue(unittest.TestCase):
     def _monkey_patch(self, queues):
         from repoze.postoffice import queue as module
-        module.db_from_uri = DummyDB({}, queues)
+        self.db = DummyDB({}, queues)
+        module.db_from_uri = self.db
 
     def _call_fut(self, name):
         from repoze.postoffice.queue import open_queue
@@ -251,7 +252,17 @@ class Test_open_queue(unittest.TestCase):
     def test_it(self):
         q = 'one'
         self._monkey_patch(dict(one=q))
-        self.assertEqual(self._call_fut('one'), q)
+        self.assertEqual(self._call_fut('one')[0], q)
+        self.failUnless(self.db.closed)
+
+    def test_closer(self):
+        q = 'one'
+        self._monkey_patch(dict(one=q))
+        queue, closer = self._call_fut('one')
+        self.assertEqual(queue, q)
+        self.failIf(self.db.closed)
+        closer()
+        self.failUnless(self.db.closed)
 
 from repoze.postoffice.message import Message
 class DummyMessage(Message):
@@ -267,6 +278,7 @@ class DummyDB(object):
         self.dbroot = dbroot
         self.queues = queues
         dbroot['postoffice'] = queues
+        self.closed = False
 
     def __call__(self, uri):
         assert uri == 'dummy_uri'
@@ -277,3 +289,6 @@ class DummyDB(object):
 
     def root(self):
         return self.dbroot
+
+    def close(self):
+        self.closed = True
