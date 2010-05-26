@@ -1,3 +1,6 @@
+from __future__ import with_statement
+
+from code import interact
 from optparse import OptionParser
 from repoze.postoffice.api import PostOffice
 import logging
@@ -42,6 +45,11 @@ class ConsoleScript(object):
         po.reconcile_queues(self.log)
         po.import_messages(self.log)
 
+    def debug(self):
+        po = PostOffice(self.config)
+        banner = '"root" is the root queues folder.'
+        with po._get_root() as root:
+            interact(banner, local={'root':root})
 
 def _find_config():
     path = os.path.abspath('postoffice.ini')
@@ -63,6 +71,9 @@ def _find_config():
 
 def main():
     return ConsoleScript()()
+
+def debug():
+    return ConsoleScript().debug()
 
 if __name__ == '__main__':
     main()

@@ -52,6 +52,7 @@ setup(name='repoze.postoffice',
       entry_points = """\
         [console_scripts]
         postoffice=repoze.postoffice.script:main
+        po_debug=repoze.postoffice.script:debug
       """
       )
 
