@@ -230,6 +230,17 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(queue.count_quarantined_messages(), 0)
         self.assertRaises(ValueError, queue.remove_from_quarantine, msg)
 
+    def test_remove_from_quarantine_bad_id(self):
+        msg = DummyMessage('Oops, my bad')
+        queue = self._make_one()
+        queue.quarantine(msg, (None, None, None))
+        self.assertEqual(queue.count_quarantined_messages(), 1)
+        id = msg['X-Postoffice-Id']
+        queue.remove_from_quarantine(msg)
+        msg['X-Postoffice-Id'] = id
+        self.assertEqual(queue.count_quarantined_messages(), 0)
+        self.assertRaises(ValueError, queue.remove_from_quarantine, msg)
+
 class TestQueuedMessage(unittest.TestCase):
     def test_it(self):
         from repoze.postoffice.queue import _QueuedMessage

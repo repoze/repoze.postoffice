@@ -152,7 +152,7 @@ class Queue(Persistent):
 
         quarantine = self._quarantine
         id = _new_id(quarantine)
-        message.__name__ = id
+        message['X-Postoffice-Id'] = str(id)
         quarantine[id] = (_QueuedMessage(message), error)
 
         if send is not None:
@@ -186,11 +186,14 @@ class Queue(Persistent):
         """
         Removes the given message from the quarantine.
         """
-        id = getattr(message, '__name__', None)
-        if id is None or id not in self._quarantine:
+        id = message.get('X-Postoffice-Id')
+        if id is None:
+            raise ValueError("Message is not in the quarantine.")
+        id = int(id)
+        if id not in self._quarantine:
             raise ValueError("Message is not in the quarantine.")
         del self._quarantine[id]
-        del message.__name__
+        del message['X-Postoffice-Id']
 
 class _QueuedMessage(Persistent):
     """
