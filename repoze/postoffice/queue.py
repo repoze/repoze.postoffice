@@ -178,7 +178,7 @@ class Queue(Persistent):
 
     def get_quarantined_message(self, id):
         id = int(id)
-        return self._quarantine[id]
+        return self._quarantine[id][0].get()
 
     def count_quarantined_messages(self):
         """
