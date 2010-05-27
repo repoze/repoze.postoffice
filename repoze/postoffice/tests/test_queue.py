@@ -143,6 +143,9 @@ class TestQueue(unittest.TestCase):
         msg, error = msgs.pop(0)
         self.assertEqual(msg, 'Woopsy!')
         self.assertEqual(error, ('IRCC', 'FWIW', 'ROTFLMAO'))
+        self.assertEqual(
+            queue.get_quarantined_message(msg['X-Postoffice-Id']), msg
+        )
 
     def test_quarantine_notice_missing_fromaddr(self):
         queue = self._make_one()

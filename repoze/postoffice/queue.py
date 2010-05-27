@@ -176,6 +176,10 @@ class Queue(Persistent):
         for message, error in self._quarantine.values():
             yield message.get(), error
 
+    def get_quarantined_message(self, id):
+        id = int(id)
+        return self._quarantine[id]
+
     def count_quarantined_messages(self):
         """
         Returns the number of messages in the quarantine.
