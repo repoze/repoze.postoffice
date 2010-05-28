@@ -11,7 +11,7 @@ are processed in the order received.
 ZODB is used for storage and is also used to provide the client interface.
 `repoze.postoffice` clients create a ZODB connection and manipulate models.
 This makes consuming the message queue in the context of a transaction,
-trivially easy.
+relatively simple.
 
 Setting up the depot
 ====================
