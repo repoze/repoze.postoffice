@@ -77,19 +77,23 @@ class PostOffice(object):
     def _init_queue(self, config, section):
         name = section[6:] # len('queue:') == 6
         filters = []
+        bounce_from_addr = None
         for option in config.options(section):
             if option == 'filters':
                 for filter_ in [f.strip() for f in
                                 config.get(section, option)
                                 .strip().split('\n')]:
                     filters.append(self._init_filter(filter_))
-            elif option =='here':
+            elif option == 'bounce_from_addr':
+                bounce_from_addr = config.get(section, option)
+            elif option == 'here':
                 pass
             else:
                 raise ValueError('Unknown config parameter for queue: %s' %
                                  option)
 
-        return dict(name=name, filters=filters, section=section)
+        return dict(name=name, filters=filters, section=section,
+                    bounce_from_addr=bounce_from_addr)
 
     def _init_filter(self, filter_):
         name, config = filter_.split(':')

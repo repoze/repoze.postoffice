@@ -69,10 +69,12 @@ Each message queue is configured in a section with the prefix 'queue:'::
   [queue:Customer A]
   filters =
       to_hostname: app.customera.com
+  bounce_from = 'Network Admnistrator' <support@customera.com>
 
   [queue:Customer B]
   filters =
       to_hostname: .customerb.com
+  bounce_from = 'Bob Wall' <bob@customerb.com>
 
 Filters are used to determine which messages land in which queues. When a new
 message enters the system each queue is tried in the order specified in the
@@ -86,6 +88,13 @@ message.  Hostnames which beging with a period will match any hostname that
 ends with the specified name, ie '.example.com' matches 'example.com' and
 'app.example.com'.  If the hostname does not begin with a period it must
 match exactly.
+
+The 'bounce_from' option sets the email address from which bounce messages
+should be sent if a message is bounced during import. Currently the only
+reason a message would be bounced during import is if it's size exceeds the
+configured 'max_message_size'.  Messages may also be bounced for application
+specific reasons by the clients, but the client will fill in the from address
+for the bounce message in that case.
 
 Populating Queues
 =================
