@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import datetime
 import logging
 from mailbox import Maildir
+from mailbox import MaildirMessage
 from mailbox import NoSuchMailboxError
 import os
 import shutil
@@ -18,6 +19,7 @@ from repoze.zodbconn.uri import db_from_uri
 
 MAIN_SECTION = 'post office'
 _marker = object()
+_too_big = object()
 
 class PostOffice(object):
     """
@@ -26,6 +28,8 @@ class PostOffice(object):
 
     # Overridable for testing
     Maildir = Maildir
+    MaildirMessage = MaildirMessage
+    Queue = Queue
 
     def __init__(self, filename, db_from_uri=db_from_uri, open=open):
         """
@@ -118,7 +122,7 @@ class PostOffice(object):
             for queue in configured:
                 name = queue['name']
                 if name not in root:
-                    root[name] = Queue()
+                    root[name] = self.Queue()
                     if log is not None:
                         log.info('Created new postoffice queue: %s' % name)
 
@@ -144,7 +148,8 @@ class PostOffice(object):
         a queue definition.  Once a message is imported it is removed from the
         maildir.
         """
-        maildir = self.Maildir(self.maildir, factory=None, create=True)
+        factory = _message_factory_factory(self, self.MaildirMessage)
+        maildir = self.Maildir(self.maildir, factory=factory, create=True)
         keys = list(maildir.keys())
         keys.sort()
         for key in keys:
@@ -168,11 +173,19 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
-                queue.add(message)
-                if log is not None:
-                    log.info("Message added to queue, %s: %s" %
-                             (name, _log_message(message))
-                             )
+                if 'X-Too-Big' in message:
+                    # XXX Pretty print max size in bounce message
+                    queue.bounce(message, _send_mail,
+                                 configured['bounce_from_addr'],
+                                 "Message size exceeds limit.")
+                    log.info("Message bounced, exceeds max size limit: %s" %
+                             _log_message(message))
+                else:
+                    queue.add(message)
+                    if log is not None:
+                        log.info("Message added to queue, %s: %s" %
+                                 (name, _log_message(message))
+                                 )
                 break
 
         else:
@@ -309,3 +322,25 @@ class _RootContextManagerFactory(object):
             conn.close()
             db.close()
 
+import smtplib
+def _send_mail(from_addr, to_addrs, message, smtplib=smtplib):
+    """
+    Sends mail message immediately through SMTP server located on localhost.
+
+    XXX Add some configuration knobs.
+    """
+    # smtplib passed in for testing
+    if not isinstance(message, str):
+        message = message.as_string()
+    mta = smtplib.SMTP('localhost')
+    mta.sendmail(from_addr, to_addrs, message)
+
+def _message_factory_factory(po, wrapped):
+    def factory(fp):
+        message = wrapped(fp)
+        if po.max_message_size:
+            fname = fp.name
+            if os.path.getsize(fname) > po.max_message_size:
+                message['X-Too-Big'] = 'True'
+        return message
+    return factory

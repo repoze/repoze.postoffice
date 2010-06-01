@@ -9,14 +9,33 @@ class TestAPI(unittest.TestCase):
         self.tx = api.transaction = DummyTransaction()
         self.root = {}
 
+        import tempfile
+        self.tempfolder = tempfile.mkdtemp('repoze.postoffice.tests')
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tempfolder)
+
     def _make_one(self, fp, queues=None, db_path='/postoffice', messages=None):
         from repoze.postoffice.api import PostOffice
+        import os
+        import tempfile
+
         def dummy_open(fname):
             return fp
         po = PostOffice('postoffice.ini', DummyDB(self.root, queues, db_path),
                         dummy_open)
+        po.Queue = DummyQueue
         if messages:
+            def mk_message(msg):
+                fd, fname = tempfile.mkstemp(dir=self.tempfolder)
+                writer = os.fdopen(fd,  'w')
+                writer.write(msg.as_string())
+                writer.close()
+                return open(fname)
+            messages = map(mk_message, messages)
             po.Maildir, self.messages = DummyMaildirFactory(messages)
+            po.MaildirMessage = DummyMessage
         return po
 
     def test_ctor_main_defaults(self):
@@ -269,6 +288,7 @@ class TestAPI(unittest.TestCase):
             "[post office]\n"
             "zodb_uri = filestorage:test.db\n"
             "maildir = test/Maildir\n"
+            "max_message_size = 5mb\n"
             "[queue:A]\n"
             "filters =\n"
             "\tto_hostname:exampleA.com\n"
@@ -284,6 +304,32 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(A), 1)
         self.assertEqual(A.pop_next(), 'one')
         self.assertEqual(len(log.infos), 2)
+
+    def test_import_message_too_big(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("ha ha ha ha")
+        msg1['To'] = 'dummy@exampleA.com'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "max_message_size = 10\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        po.import_messages(log)
+        A = queues['A']
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A.bounced), 1)
 
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
@@ -319,6 +365,31 @@ class Test_get_opt_bytes(unittest.TestCase):
     def test_bad_bytes(self):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('64foos'))
         self.assertRaises(ValueError, self._call_fut, DummyConfig('sixty'))
+
+class Test_send_mail(unittest.TestCase):
+    def test_string_message(self):
+        from repoze.postoffice.api import _send_mail as fut
+        smtp = DummySMTPLib()
+        fut('me', ['you', 'them'], 'Hello', smtplib=smtp)
+        self.assertEqual(smtp.sent, [('me', ['you', 'them'], 'Hello'),])
+
+    def test_message_object(self):
+        from repoze.postoffice.api import _send_mail as fut
+        smtp = DummySMTPLib()
+        message = DummyMessage('Hello')
+        fut('me', ['you', 'them'], message, smtplib=smtp)
+        self.assertEqual(smtp.sent, [('me', ['you', 'them'],
+                                      message.as_string()),])
+
+class DummySMTPLib(object):
+    def __init__(self):
+        self.sent = []
+
+    def SMTP(self, host):
+        return self
+
+    def sendmail(self, from_addr, to_addrs, msg):
+        self.sent.append((from_addr, to_addrs, msg))
 
 class DummyConfig(object):
     def __init__(self, answer):
@@ -391,7 +462,7 @@ def DummyMaildirFactory(messages):
             return range(len(messages))
 
         def get_message(self, key):
-            return messages[key]
+            return self.factory(messages[key])
 
         def remove(self, key):
             del messages[key]
@@ -408,17 +479,35 @@ def DummyMaildirFactory(messages):
 
     return DummyMaildir, messages
 
-from repoze.postoffice.message import Message
-class DummyMessage(Message):
+from mailbox import MaildirMessage
+class DummyMessage(MaildirMessage):
     def __init__(self, body=None):
-        Message.__init__(self)
-        self.set_payload(body)
-        self['From'] = 'Woody Woodpecker <ww@toonz.net>'
-        self['Subject'] = 'Double date tonight'
-        self['Message-Id'] = '12389jdfkj98'
+        if isinstance(body, file):
+            MaildirMessage.__init__(self, body)
+        else:
+            MaildirMessage.__init__(self)
+            self.set_payload(body)
+            self['From'] = 'Woody Woodpecker <ww@toonz.net>'
+            self['Subject'] = 'Double date tonight'
+            self['Message-Id'] = '12389jdfkj98'
 
     def __eq__(self, other):
         return self.get_payload().__eq__(other)
 
     def __hash__(self):
         return hash(self.get_payload())
+
+class DummyQueue(list):
+    def __init__(self):
+        self.bounced = []
+
+    def add(self, message):
+        self.append(message)
+
+    def pop_next(self):
+        return self.pop(0)
+
+    def bounce(self, message, sender, from_addr, reason):
+        self.bounced.append((message, sender, from_addr, reason))
+
+
