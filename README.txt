@@ -140,17 +140,14 @@ with a precedence of 'bulk', 'junk', or 'list' are discarded.  Next
 which is described in rfc3834 and is standard, but not yet widely supported.
 Messages containing this header are discarded.
 
-Since many widely used email clients (written by Microsoft) are not well
-behaved enough to properly set the above headers, `repoze.postoffice` also
-checks for the presence of common, English language, out of office or vacation
-message strings in the subject line of the email. This method is obviously
-somewhat hit and miss and only works for subject lines written in English. As
-a last line of defense, `repoze.postoffice` also tracks the frequency of
-incoming mail by email address. When the number of messages arriving from the
-same user surpasses a particular, assumedly inhuman, threshold, a temporary
-block is placed on messages from that user, such that all messages from that
-user are discarded for a certain period of time, hopefully breaking the auto
-reply feedback loop.
+Out of office messages sent by certain clients (Microsoft) will typically not
+use either of the above standards to indicate an automated reply. As a last
+line of defense, `repoze.postoffice` also tracks the frequency of incoming
+mail by email address. When the number of messages arriving from the same user
+surpasses a particular, assumedly inhuman, threshold, a temporary block is
+placed on messages from that user, such that all messages from that user are
+discarded for a certain period of time, hopefully breaking the auto reply
+feedback loop.
 
 Consuming Queues
 ================

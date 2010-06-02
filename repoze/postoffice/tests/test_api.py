@@ -331,6 +331,62 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(log.infos), 2)
         self.assertEqual(len(A.bounced), 1)
 
+    def test_import_message_auto_reply_precedence_header(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Precedence'] = 'bulk'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "max_message_size = 5mb\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
+    def test_import_message_auto_reply_rfc3834(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Auto-Submitted'] = 'Auto-Submitted'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "max_message_size = 5mb\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int

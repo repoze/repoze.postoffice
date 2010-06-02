@@ -164,6 +164,11 @@ class PostOffice(object):
                 log.info("Processed %d messages." % n)
 
     def _import_message(self, message, log):
+        if 'X-Auto-Reply' in message:
+            log.info("Message discarded, automatic reply: %s" %
+                     _log_message(message))
+            return
+
         for configured in self.configured_queues:
             filters = configured['filters']
             if not filters or not _filters_match(filters, message):
@@ -338,9 +343,28 @@ def _send_mail(from_addr, to_addrs, message, smtplib=smtplib):
 def _message_factory_factory(po, wrapped):
     def factory(fp):
         message = wrapped(fp)
+
+        # Check for signs of automated reply
+
+        # Like Mailman, if a message has "Precedence: bulk|junk|list",
+        # discard it.  The Precedence header is non-standard, yet
+        # widely supported.
+        precedence = message.get('Precedence', '').lower()
+        if precedence in ('bulk', 'junk', 'list'):
+            message['X-Auto-Reply'] = 'True'
+
+        # rfc3834 is the standard way to discard automated responses, but
+        # it is not yet widely supported.
+        auto_submitted = message.get('Auto-Submitted', '').lower()
+        if auto_submitted.startswith('auto'):
+            message['X-Auto-Reply'] = 'True'
+
+        # Check size against maximum
         if po.max_message_size:
             fname = fp.name
             if os.path.getsize(fname) > po.max_message_size:
                 message['X-Too-Big'] = 'True'
+
         return message
+
     return factory
