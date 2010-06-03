@@ -268,6 +268,28 @@ class TestQueue(unittest.TestCase):
         now = datetime(2010, 5, 12, 2, 46)
         self.assertAlmostEqual(fut('Harry', now), 0.25)
 
+    def test_get_average_frequency(self):
+        from datetime import datetime
+        from datetime import timedelta
+        now = datetime(2010, 5, 12, 2, 43)
+        interval = timedelta(minutes=1)
+        queue = self._make_one()
+        fut = queue.get_average_frequency
+        self.assertAlmostEqual(fut('Harry', now, interval), 0.0)
+        queue.add(DummyMessage('one'))
+        self.assertAlmostEqual(fut('Harry', now, interval), 1.0)
+        queue.add(DummyMessage('two'))
+        self._set_now(now)
+        now += timedelta(minutes=1)
+        interval = timedelta(minutes=2)
+        queue.add(DummyMessage('three'))
+        queue.add(DummyMessage('four'))
+        self.assertAlmostEqual(fut('Harry', now, interval), 2.0)
+        now += timedelta(minutes=1)
+        self.assertAlmostEqual(fut('Harry', now, interval), 1.0)
+        now += timedelta(minutes=1)
+        self.assertAlmostEqual(fut('Harry', now, interval), 0.0)
+
 class TestQueuedMessage(unittest.TestCase):
     def test_it(self):
         from repoze.postoffice.queue import _QueuedMessage

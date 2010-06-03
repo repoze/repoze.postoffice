@@ -226,6 +226,29 @@ class Queue(Persistent):
         delta = now - freq_data[-1]
         return 60.0 / _timedelta_as_seconds(delta)
 
+    def get_average_frequency(self, user, now, interval):
+        """
+        Gets the average frequency of message submission for the given user
+        over the given time interval. The frequency is a floating point number
+        representing messages per minute. The average frequency is calculated
+        by looking at the number of messages received from the user from now -
+        interval until now. The 'user' argument matches the 'From' field of
+        the incoming messages. The interval argument should be an instance of
+        `datetime.timedelta`. Frequency data for messages received prior to
+        the interval of interest will be deleted.
+        """
+        freq_data = self._freq_data.get(user)
+        start = now - interval
+        while freq_data and freq_data[0] < start:
+            del freq_data[0]
+        if not freq_data:
+            return 0.0
+        count = 0
+        for timestamp in freq_data:
+            if timestamp < now:
+                count += 1
+        return 60.0 * count / _timedelta_as_seconds(interval)
+
 class _QueuedMessage(Persistent):
     """
     Wrapper for storing email messages in queues.  Stores email as flattened
