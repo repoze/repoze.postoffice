@@ -192,6 +192,7 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
+                queue.collect_frequency_data(message)
                 if 'X-Too-Big' in message:
                     # XXX Pretty print max size in bounce message
                     queue.bounce(message, _send_mail,

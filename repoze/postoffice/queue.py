@@ -58,12 +58,17 @@ class Queue(Persistent):
         """
         Add a message to the queue.
         """
-        user = message['From']
-        date = message.get('Date')
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
 
+    def collect_frequency_data(self, message):
+        """
+        Store data about frequency of message submission from sender of this
+        message.
+        """
+        user = message['From']
+        date = message.get('Date')
         # Save frequency data
         if date is not None:
             date = datetime.datetime(*parsedate(date)[:6])

@@ -713,3 +713,6 @@ class DummyQueue(list):
         self.interval = interval
         return self.average_freq
 
+    def collect_frequency_data(self, message):
+        pass
+
