@@ -1,6 +1,7 @@
 from BTrees.IOBTree import IOBTree
 from BTrees.OOBTree import OOBTree
 from persistent import Persistent
+from persistent.list import PersistentList
 from ZODB.blob import Blob
 
 import email.generator
@@ -50,14 +51,24 @@ class Queue(Persistent):
     def __init__(self):
         self._quarantine = IOBTree()
         self._messages = IOBTree()
+        self._freq_data = OOBTree()
 
     def add(self, message):
         """
         Add a message to the queue.
         """
+        user = message['From']
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
+
+        # Save frequency data
+        now = datetime.datetime.now()
+        times = self._freq_data.get(user)
+        if times is None:
+            times = _FreqData()
+            self._freq_data[user] = times
+        times.append(now)
 
     def pop_next(self):
         """
@@ -199,6 +210,22 @@ class Queue(Persistent):
         del self._quarantine[id]
         del message['X-Postoffice-Id']
 
+    def get_instantaneous_frequency(self, user, now):
+        """
+        Gets the instantaneous frequency of message submission for the given
+        user. The frequency is a floating point number representing messages
+        per minute. The instantaneous frequency is calculated using the time
+        interval between now and the time of the user's last submitted
+        message. The 'user' argument matches the 'From' field of the incoming
+        messages.  If no data is available about user's last submitted message,
+        the frequency will be 0.0.
+        """
+        freq_data = self._freq_data.get(user)
+        if not freq_data:
+            return 0.0
+        delta = now - freq_data[-1]
+        return 60.0 / _timedelta_as_seconds(delta)
+
 class _QueuedMessage(Persistent):
     """
     Wrapper for storing email messages in queues.  Stores email as flattened
@@ -220,11 +247,19 @@ class _QueuedMessage(Persistent):
             self._v_message = parser.parse(self._blob_file.open())
         return self._v_message
 
+class _FreqData(PersistentList):
+    throttled = False
+
 def _new_id(container):
     # Use numeric incrementally increasing ids to preserve FIFO order
     if len(container):
         return max(container.keys()) + 1
     return 0
+
+def _timedelta_as_seconds(td):
+    return (24.0 * 60.0 * 60.0 * td.days +
+            td.seconds +
+            td.microseconds / 1000000)
 
 _default_bounce_body = """
 Your email, sent on %s to %s has bounced for the following reason:

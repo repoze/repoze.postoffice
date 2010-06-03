@@ -1,9 +1,22 @@
 import unittest
 
 class TestQueue(unittest.TestCase):
+    def setUp(self):
+        from repoze.postoffice import queue
+        self._save_datetime = queue.datetime
+        self._dummy_datetime = DummyDatetime()
+        queue.datetime = self._dummy_datetime
+
+    def tearDown(self):
+        from repoze.postoffice import queue
+        queue.datetime = self._save_datetime
+
     def _make_one(self):
         from repoze.postoffice.queue import Queue
         return Queue()
+
+    def _set_now(self, now):
+        self._dummy_datetime._now = now
 
     def test_add_and_retrieve_messages(self):
         queue = self._make_one()
@@ -244,6 +257,17 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(queue.count_quarantined_messages(), 0)
         self.assertRaises(ValueError, queue.remove_from_quarantine, msg)
 
+    def test_get_instantaneous_frequency(self):
+        from datetime import datetime
+        now = datetime(2010, 5, 12, 2, 42, 30)
+        queue = self._make_one()
+        fut = queue.get_instantaneous_frequency
+        self.assertAlmostEqual(fut('Harry', now), 0.0)
+        queue.add(DummyMessage('one'))
+        self.assertAlmostEqual(fut('Harry', now), 2.0)
+        now = datetime(2010, 5, 12, 2, 46)
+        self.assertAlmostEqual(fut('Harry', now), 0.25)
+
 class TestQueuedMessage(unittest.TestCase):
     def test_it(self):
         from repoze.postoffice.queue import _QueuedMessage
@@ -282,6 +306,7 @@ from repoze.postoffice.message import Message
 class DummyMessage(Message):
     def __init__(self, body=None):
         Message.__init__(self)
+        self['From'] = 'Harry'
         self.set_payload(body)
 
     def __eq__(self, other):
@@ -306,3 +331,14 @@ class DummyDB(object):
 
     def close(self):
         self.closed = True
+
+from datetime import datetime
+class DummyDatetime(object):
+    _now = datetime(2010, 5, 12, 2, 42)
+
+    @property
+    def datetime(self):
+        return self
+
+    def now(self):
+        return self._now
