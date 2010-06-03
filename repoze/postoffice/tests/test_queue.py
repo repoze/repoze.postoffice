@@ -259,13 +259,15 @@ class TestQueue(unittest.TestCase):
 
     def test_get_instantaneous_frequency(self):
         from datetime import datetime
-        now = datetime(2010, 5, 12, 2, 42, 30)
+        now = datetime(2010, 5, 13, 2, 42, 30)
         queue = self._make_one()
         fut = queue.get_instantaneous_frequency
         self.assertAlmostEqual(fut('Harry', now), 0.0)
-        queue.add(DummyMessage('one'))
+        message = DummyMessage('one')
+        message['Date'] = 'Wed, 13 May 2010 02:42:00'
+        queue.add(message)
         self.assertAlmostEqual(fut('Harry', now), 2.0)
-        now = datetime(2010, 5, 12, 2, 46)
+        now = datetime(2010, 5, 13, 2, 46)
         self.assertAlmostEqual(fut('Harry', now), 0.25)
 
     def test_get_average_frequency(self):
@@ -357,6 +359,9 @@ class DummyDB(object):
 from datetime import datetime
 class DummyDatetime(object):
     _now = datetime(2010, 5, 12, 2, 42)
+
+    def __call__(self, *args, **kw):
+        return datetime(*args, **kw)
 
     @property
     def datetime(self):

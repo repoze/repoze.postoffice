@@ -7,6 +7,7 @@ from ZODB.blob import Blob
 import email.generator
 import email.message
 import email.parser
+from email.utils import parsedate
 
 from repoze.postoffice.message import Message
 from repoze.zodbconn.uri import db_from_uri
@@ -58,17 +59,21 @@ class Queue(Persistent):
         Add a message to the queue.
         """
         user = message['From']
+        date = message.get('Date')
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
 
         # Save frequency data
-        now = datetime.datetime.now()
+        if date is not None:
+            date = datetime.datetime(*parsedate(date)[:6])
+        else:
+            date = datetime.datetime.now()
         times = self._freq_data.get(user)
         if times is None:
             times = _FreqData()
             self._freq_data[user] = times
-        times.append(now)
+        times.append(date)
 
     def pop_next(self):
         """
