@@ -97,7 +97,6 @@ class TestAPI(unittest.TestCase):
             "[queue:B]\n"
             "filters =\n"
             "\tto_hostname:.exampleB.com\n"
-            "bounce_from_addr = Bob Kostas <bob@exampleB.com>\n"
         ))
 
         queues = po.configured_queues
@@ -106,13 +105,10 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(queue['name'], 'A')
         self.assertEqual(len(queue['filters']), 1)
         self.assertEqual(queue['filters'][0].expr, 'exampleA.com')
-        self.assertEqual(queue['bounce_from_addr'], None)
         queue = queues.pop(0)
         self.assertEqual(queue['name'], 'B')
         self.assertEqual(len(queue['filters']), 1)
         self.assertEqual(queue['filters'][0].expr, '.exampleB.com')
-        self.assertEqual(queue['bounce_from_addr'],
-                               'Bob Kostas <bob@exampleB.com>')
 
     def test_ctor_bad_filtertype(self):
         self.assertRaises(ValueError, self._make_one, StringIO(
@@ -331,7 +327,6 @@ class TestAPI(unittest.TestCase):
         A = queues['A']
         self.assertEqual(len(A), 0)
         self.assertEqual(len(log.infos), 2)
-        self.assertEqual(len(A.bounced), 1)
 
     def test_import_message_auto_reply_precedence_header(self):
         log = DummyLogger()

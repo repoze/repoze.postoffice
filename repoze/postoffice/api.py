@@ -10,6 +10,7 @@ from mailbox import Maildir
 from mailbox import MaildirMessage
 from mailbox import NoSuchMailboxError
 import os
+import re
 import shutil
 import transaction
 
@@ -20,7 +21,7 @@ from repoze.zodbconn.uri import db_from_uri
 
 MAIN_SECTION = 'post office'
 _marker = object()
-_too_big = object()
+_discarded = object()
 
 class PostOffice(object):
     """
@@ -82,23 +83,19 @@ class PostOffice(object):
     def _init_queue(self, config, section):
         name = section[6:] # len('queue:') == 6
         filters = []
-        bounce_from_addr = None
         for option in config.options(section):
             if option == 'filters':
                 for filter_ in [f.strip() for f in
                                 config.get(section, option)
                                 .strip().split('\n')]:
                     filters.append(self._init_filter(filter_))
-            elif option == 'bounce_from_addr':
-                bounce_from_addr = config.get(section, option)
             elif option == 'here':
                 pass
             else:
                 raise ValueError('Unknown config parameter for queue: %s' %
                                  option)
 
-        return dict(name=name, filters=filters, section=section,
-                    bounce_from_addr=bounce_from_addr)
+        return dict(name=name, filters=filters, section=section)
 
     def _init_filter(self, filter_):
         name, config = filter_.split(':')
@@ -149,12 +146,15 @@ class PostOffice(object):
         a queue definition.  Once a message is imported it is removed from the
         maildir.
         """
-        factory = _message_factory_factory(self, self.MaildirMessage)
+        factory = _message_factory_factory(self, self.MaildirMessage, log)
         maildir = self.Maildir(self.maildir, factory=factory, create=True)
         keys = list(maildir.keys())
         keys.sort()
         for key in keys:
             message = maildir.get_message(key)
+            if message is _discarded:
+                maildir.remove(key)
+                continue
             self._import_message(message, log)
             self._archive_message(maildir, message, key)
         if log is not None:
@@ -165,11 +165,6 @@ class PostOffice(object):
                 log.info("Processed %d messages." % n)
 
     def _import_message(self, message, log):
-        if 'X-Auto-Reply' in message:
-            log.info("Message discarded, automatic reply: %s" %
-                     _log_message(message))
-            return
-
         user = message.get('From')
         if user is None:
             if log is not None:
@@ -192,18 +187,8 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
-                queue.collect_frequency_data(message)
-                if 'X-Too-Big' in message:
-                    # XXX Pretty print max size in bounce message
-                    queue.bounce(message, _send_mail,
-                                 configured['bounce_from_addr'],
-                                 "Message size exceeds limit.")
-                    if log is not None:
-                        log.info("Message bounced, exceeds max size limit: %s"
-                                 % _log_message(message))
-                    break
-
-                elif queue.is_throttled(user, now):
+                if queue.is_throttled(user, now):
+                    queue.collect_frequency_data(message)
                     log.info("Message discarded, user throttled: %s" %
                              _log_message(message))
                     break
@@ -220,11 +205,13 @@ class PostOffice(object):
                         queue.get_average_frequency(user, now, interval) >
                         freq):
                         queue.throttle(user, now + self.ooo_throttle_period)
+                        queue.collect_frequency_data(message)
                         log.info("Message discarded, user triggered "
                                  "throttle: %s" % _log_message(message))
                         break
 
                 queue.add(message)
+                queue.collect_frequency_data(message)
                 if log is not None:
                     log.info("Message added to queue, %s: %s" %
                              (name, _log_message(message))
@@ -385,31 +372,58 @@ def _send_mail(from_addr, to_addrs, message, smtplib=smtplib):
     mta = smtplib.SMTP('localhost')
     mta.sendmail(from_addr, to_addrs, message)
 
-def _message_factory_factory(po, wrapped):
+def _message_factory_factory(po, wrapped, log):
     def factory(fp):
-        message = wrapped(fp)
+        headers = _read_message_headers(fp)
 
         # Check for signs of automated reply
 
         # Like Mailman, if a message has "Precedence: bulk|junk|list",
         # discard it.  The Precedence header is non-standard, yet
         # widely supported.
-        precedence = message.get('Precedence', '').lower()
+        precedence = headers.get('Precedence', '').lower()
         if precedence in ('bulk', 'junk', 'list'):
-            message['X-Auto-Reply'] = 'True'
+            if log is not None:
+                log.info("Message discarded, automatic reply: %s" %
+                         _log_message(headers))
+            return _discarded
 
         # rfc3834 is the standard way to discard automated responses, but
         # it is not yet widely supported.
-        auto_submitted = message.get('Auto-Submitted', '').lower()
+        auto_submitted = headers.get('Auto-Submitted', '').lower()
         if auto_submitted.startswith('auto'):
-            message['X-Auto-Reply'] = 'True'
+            if log is not None:
+                log.info("Message discarded, automatic reply: %s" %
+                         _log_message(headers))
+            return _discarded
 
         # Check size against maximum
         if po.max_message_size:
             fname = fp.name
             if os.path.getsize(fname) > po.max_message_size:
-                message['X-Too-Big'] = 'True'
+                # XXX Bounce instead of discard? (Bounce emails user.)
+                if log is not None:
+                    log.info("Message discarded, exceeds max size limit: %s"
+                             % _log_message(headers))
+                return _discarded
 
-        return message
+        fp.seek(0)
+        return wrapped(fp)
 
     return factory
+
+_starts_with_whitespace = re.compile('^\s')
+
+def _read_message_headers(fp):
+    headers = {}
+    header = None
+    for line in fp:
+        line = line.rstrip('\n').rstrip('\r')
+        if not line:
+            break
+        if _starts_with_whitespace.match(line):
+            headers[header] += line
+            continue
+        header, value = line.split(': ', 1)
+        headers[header] = value
+    return headers

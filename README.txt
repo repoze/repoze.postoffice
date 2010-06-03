@@ -58,23 +58,21 @@ user reaches the `ooo_loop_frequency` threshold.  Defaults to 5 minutes.  If
 `ooo_loop_frequency` is not set, this setting has no effect.
 
 `max_message_size` sets the maximum size, in bytes, of incoming messages.
-Messages which exceed this limit will be bounced and the sender will be
-informed via email. The suffixes 'k', 'm' or 'g' may be used to specify that
-the number of bytes is expressed in kilobytes, megabytes or gigabytes,
-respectively. A number without suffix will be interpreted as bytes. If not
-set, no limit will be imposed on incoming message size.
+Messages which exceed this limit will be discarded. The sender will not be
+informed. (This might be a later feature.) The suffixes 'k', 'm' or 'g' may be
+used to specify that the number of bytes is expressed in kilobytes, megabytes
+or gigabytes, respectively. A number without suffix will be interpreted as
+bytes. If not set, no limit will be imposed on incoming message size.
 
 Each message queue is configured in a section with the prefix 'queue:'::
 
   [queue:Customer A]
   filters =
       to_hostname: app.customera.com
-  bounce_from = 'Network Admnistrator' <support@customera.com>
 
   [queue:Customer B]
   filters =
       to_hostname: .customerb.com
-  bounce_from = 'Bob Wall' <bob@customerb.com>
 
 Filters are used to determine which messages land in which queues. When a new
 message enters the system each queue is tried in the order specified in the
@@ -88,13 +86,6 @@ message.  Hostnames which beging with a period will match any hostname that
 ends with the specified name, ie '.example.com' matches 'example.com' and
 'app.example.com'.  If the hostname does not begin with a period it must
 match exactly.
-
-The 'bounce_from' option sets the email address from which bounce messages
-should be sent if a message is bounced during import. Currently the only
-reason a message would be bounced during import is if it's size exceeds the
-configured 'max_message_size'.  Messages may also be bounced for application
-specific reasons by the clients, but the client will fill in the from address
-for the bounce message in that case.
 
 Populating Queues
 =================
