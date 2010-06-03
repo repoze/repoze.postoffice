@@ -59,8 +59,8 @@ class PostOffice(object):
                                      '/postoffice')
         self.ooo_loop_frequency = _get_opt_int(
             config, MAIN_SECTION, 'ooo_loop_frequency', '0')
-        self.ooo_blackout_period = _get_opt_int(
-            config, MAIN_SECTION, 'ooo_blackout_period', '300')
+        self.ooo_throttle_period = _get_opt_int(
+            config, MAIN_SECTION, 'ooo_throttle_period', '300')
         self.max_message_size = _get_opt_bytes(
             config, MAIN_SECTION, 'max_message_size', '0')
 

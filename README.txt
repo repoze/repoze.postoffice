@@ -33,7 +33,7 @@ set up as well as the location of the incoming Maildir::
   # Optional parameters
   zodb_path = /postoffice
   ooo_loop_frequency = 60 # 1 Hertz
-  ooo_blackout_period = 300 # 5 minutes
+  ooo_throttle_period = 300 # 5 minutes
   max_message_size = 500m
 
 `zodb_uri` is interpreted using `repoze.zodbconn` and follows the format laid
@@ -52,7 +52,7 @@ discarded for period of time in an attempt to break a possible out of office
 auto-reply loop. If not specified, no check is performed on frequency of
 incoming messages.
 
-`ooo_blackout_period` specifies the amount of time, in minutes, for which a
+`ooo_throttle_period` specifies the amount of time, in minutes, for which a
 user's incoming mail will be discarded if a loop detection is in use and the
 user reaches the `ooo_loop_frequency` threshold.  Defaults to 5 minutes.  If
 `ooo_loop_frequency` is not set, this setting has no effect.

@@ -48,7 +48,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 0)
-        self.assertEqual(po.ooo_blackout_period, 300)
+        self.assertEqual(po.ooo_throttle_period, 300)
         self.assertEqual(po.max_message_size, 0)
 
     def test_ctor_main_everything(self):
@@ -58,14 +58,14 @@ class TestAPI(unittest.TestCase):
             "maildir = test/Maildir\n"
             "zodb_path = /path/to/postoffice\n"
             "ooo_loop_frequency = 63\n"
-            "ooo_blackout_period = 500\n"
+            "ooo_throttle_period = 500\n"
             "max_message_size = 500mb\n"
         ))
         self.assertEqual(po.zodb_uri, 'filestorage:test.db')
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/path/to/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 63)
-        self.assertEqual(po.ooo_blackout_period, 500)
+        self.assertEqual(po.ooo_throttle_period, 500)
         self.assertEqual(po.max_message_size, 500 * 1<<20)
 
     def test_ctor_missing_main_section(self):

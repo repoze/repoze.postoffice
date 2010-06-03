@@ -254,6 +254,33 @@ class Queue(Persistent):
                 count += 1
         return 60.0 * count / _timedelta_as_seconds(interval)
 
+    def throttle(self, user, until):
+        """
+        Marks the user as throttled until the specified time. 'user' is the
+        value of the 'From' field in sent messages. 'until' is an instance of
+        datetime.datetime.
+        """
+        freq_data = self._freq_data.get(user)
+        if freq_data is None:
+            freq_data = _FreqData()
+            self._freq_data[user] = freq_data
+        freq_data.throttle = until
+
+    def is_throttled(self, user, now):
+        """
+        Returns boolean indicating whether user is throttled at time indicated
+        by 'now'.  'now' is an instance of datetime.datetime.
+        """
+        freq_data = self._freq_data.get(user)
+        if freq_data is None:
+            return False
+        if freq_data.throttle is None:
+            return False
+        if freq_data.throttle < now:
+            freq_data.throttle = None
+            return False
+        return True
+
 class _QueuedMessage(Persistent):
     """
     Wrapper for storing email messages in queues.  Stores email as flattened
@@ -276,7 +303,7 @@ class _QueuedMessage(Persistent):
         return self._v_message
 
 class _FreqData(PersistentList):
-    throttled = False
+    throttle = None
 
 def _new_id(container):
     # Use numeric incrementally increasing ids to preserve FIFO order

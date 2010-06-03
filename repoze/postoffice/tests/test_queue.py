@@ -292,6 +292,20 @@ class TestQueue(unittest.TestCase):
         now += timedelta(minutes=1)
         self.assertAlmostEqual(fut('Harry', now, interval), 0.0)
 
+    def test_throttle(self):
+        from datetime import datetime
+        from datetime import timedelta
+        queue = self._make_one()
+        user = 'Harry'
+        now = datetime(2010, 5, 12, 2, 42)
+        self.failIf(queue.is_throttled(user, now))
+        queue.throttle(user, now + timedelta(minutes=5))
+        self.failUnless(queue.is_throttled(user, now))
+        now += timedelta(minutes=6)
+        self.failIf(queue.is_throttled(user, now))
+        now += timedelta(minutes=6)
+        self.failIf(queue.is_throttled(user, now))
+
 class TestQueuedMessage(unittest.TestCase):
     def test_it(self):
         from repoze.postoffice.queue import _QueuedMessage
