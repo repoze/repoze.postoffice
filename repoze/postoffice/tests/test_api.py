@@ -39,6 +39,7 @@ class TestAPI(unittest.TestCase):
         return po
 
     def test_ctor_main_defaults(self):
+        from datetime import timedelta
         po = self._make_one(StringIO(
             "[post office]\n"
             "zodb_uri = filestorage:test.db\n"
@@ -48,10 +49,11 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 0)
-        self.assertEqual(po.ooo_throttle_period, 300)
+        self.assertEqual(po.ooo_throttle_period, timedelta(minutes=5))
         self.assertEqual(po.max_message_size, 0)
 
     def test_ctor_main_everything(self):
+        from datetime import timedelta
         po = self._make_one(StringIO(
             "[post office]\n"
             "zodb_uri = filestorage:test.db\n"
@@ -65,7 +67,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/path/to/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 63)
-        self.assertEqual(po.ooo_throttle_period, 500)
+        self.assertEqual(po.ooo_throttle_period, timedelta(seconds=500))
         self.assertEqual(po.max_message_size, 500 * 1<<20)
 
     def test_ctor_missing_main_section(self):
@@ -387,6 +389,122 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(A), 0)
         self.assertEqual(len(log.infos), 2)
 
+    def test_user_throttled(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Date'] = 'Wed, 12 May 2010 02:42:00'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        A.throttled = True
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
+    def test_throttle_user_instant_freq(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Date'] = 'Wed, 12 May 2010 02:42:00'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "ooo_loop_frequency = 0.25\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        A.instant_freq = 1
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(A.throttled, datetime.datetime(2010, 5, 12, 2, 47))
+
+    def test_throttle_user_average_freq(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Date'] = 'Wed, 12 May 2010 02:42:00'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "ooo_loop_frequency = 0.25\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        A.average_freq = 1
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(A.throttled, datetime.datetime(2010, 5, 12, 2, 47))
+        self.assertEqual(A.interval, datetime.timedelta(minutes=16.0))
+
+    def test_missing_from(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        del msg1['From']
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int
@@ -394,6 +512,17 @@ class Test_get_opt_int(unittest.TestCase):
 
     def test_convert_to_int(self):
         self.assertEqual(self._call_fut(DummyConfig('10')), 10)
+
+    def test_bad_int(self):
+        self.assertRaises(ValueError, self._call_fut, DummyConfig('foo'))
+
+class Test_get_opt_float(unittest.TestCase):
+    def _call_fut(self, dummy_config):
+        from repoze.postoffice.api import _get_opt_float as fut
+        return fut(dummy_config, None, None, None)
+
+    def test_convert_to_float(self):
+        self.assertEqual(self._call_fut(DummyConfig('10.5')), 10.5)
 
     def test_bad_int(self):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('foo'))
@@ -554,6 +683,11 @@ class DummyMessage(MaildirMessage):
         return hash(self.get_payload())
 
 class DummyQueue(list):
+    throttled = False
+    instant_freq = 0
+    average_freq = 0
+    interval = None
+
     def __init__(self):
         self.bounced = []
 
@@ -566,4 +700,16 @@ class DummyQueue(list):
     def bounce(self, message, sender, from_addr, reason):
         self.bounced.append((message, sender, from_addr, reason))
 
+    def throttle(self, user, until):
+        self.throttled = until
+
+    def is_throttled(self, user, now):
+        return self.throttled
+
+    def get_instantaneous_frequency(self, user, now):
+        return self.instant_freq
+
+    def get_average_frequency(self, user, now, interval):
+        self.interval = interval
+        return self.average_freq
 

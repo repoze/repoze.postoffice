@@ -4,6 +4,7 @@ from cStringIO import StringIO
 from ConfigParser import ConfigParser
 from contextlib import contextmanager
 import datetime
+from email.utils import parsedate
 import logging
 from mailbox import Maildir
 from mailbox import MaildirMessage
@@ -57,10 +58,10 @@ class PostOffice(object):
         self.maildir = _get_opt(config, MAIN_SECTION, 'maildir')
         self.zodb_path = _get_opt(config, MAIN_SECTION, 'zodb_path',
                                      '/postoffice')
-        self.ooo_loop_frequency = _get_opt_int(
+        self.ooo_loop_frequency = _get_opt_float(
             config, MAIN_SECTION, 'ooo_loop_frequency', '0')
-        self.ooo_throttle_period = _get_opt_int(
-            config, MAIN_SECTION, 'ooo_throttle_period', '300')
+        self.ooo_throttle_period = datetime.timedelta(seconds=_get_opt_int(
+            config, MAIN_SECTION, 'ooo_throttle_period', '300'))
         self.max_message_size = _get_opt_bytes(
             config, MAIN_SECTION, 'max_message_size', '0')
 
@@ -169,6 +170,19 @@ class PostOffice(object):
                      _log_message(message))
             return
 
+        user = message.get('From')
+        if user is None:
+            if log is not None:
+                log.info("Message discarded: no 'From' header: %s" %
+                         _log_message(message))
+            return
+
+        now = message.get('Date')
+        if now is not None:
+            now = datetime.datetime(*parsedate(now)[:6])
+        else:
+            now = datetime.datetime.now()
+
         for configured in self.configured_queues:
             filters = configured['filters']
             if not filters or not _filters_match(filters, message):
@@ -183,14 +197,37 @@ class PostOffice(object):
                     queue.bounce(message, _send_mail,
                                  configured['bounce_from_addr'],
                                  "Message size exceeds limit.")
-                    log.info("Message bounced, exceeds max size limit: %s" %
-                             _log_message(message))
-                else:
-                    queue.add(message)
                     if log is not None:
-                        log.info("Message added to queue, %s: %s" %
-                                 (name, _log_message(message))
-                                 )
+                        log.info("Message bounced, exceeds max size limit: %s"
+                                 % _log_message(message))
+                    break
+
+                elif queue.is_throttled(user, now):
+                    log.info("Message discarded, user throttled: %s" %
+                             _log_message(message))
+                    break
+
+                freq = self.ooo_loop_frequency
+                if freq:
+                    # If instanteous or average frequency exceeds limit,
+                    # throttle user. For average frequency, use interval that
+                    # is 4 times the inverse of the the freqency. IE, if
+                    # frequency is 0.25/minute, then 1/frequency is 4 minutes
+                    # and interval to average over is 16 minutes.
+                    interval = datetime.timedelta(minutes=4*1/freq)
+                    if (queue.get_instantaneous_frequency(user, now) > freq or
+                        queue.get_average_frequency(user, now, interval) >
+                        freq):
+                        queue.throttle(user, now + self.ooo_throttle_period)
+                        log.info("Message discarded, user triggered "
+                                 "throttle: %s" % _log_message(message))
+                        break
+
+                queue.add(message)
+                if log is not None:
+                    log.info("Message added to queue, %s: %s" %
+                             (name, _log_message(message))
+                             )
                 break
 
         else:
@@ -222,6 +259,13 @@ def _get_opt_int(config, section, name, default=_marker):
         return int(value)
     except:
         raise ValueError('Value for %s must be an integer' % name)
+
+def _get_opt_float(config, section, name, default=_marker):
+    value = _get_opt(config, section, name, default)
+    try:
+        return float(value)
+    except:
+        raise ValueError('Value for %s must be a floating point number' % name)
 
 def _get_opt_bytes(config, section, name, default=_marker):
     value = _get_opt(config, section, name, default).lower()
