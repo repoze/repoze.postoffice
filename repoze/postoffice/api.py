@@ -424,6 +424,6 @@ def _read_message_headers(fp):
         if _starts_with_whitespace.match(line):
             headers[header] += line
             continue
-        header, value = line.split(': ', 1)
-        headers[header] = value
+        header, value = line.split(':', 1)
+        headers[header] = value.strip()
     return headers

@@ -1,7 +1,7 @@
 Unreleased
 ----------
 
-- ...
+- Fixed bug in parsing headers with no values.
 
 0.1 (2010-06-03)
 ----------------
