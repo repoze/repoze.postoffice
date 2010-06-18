@@ -727,10 +727,10 @@ class DummyQueue(list):
     def bounce(self, message, sender, from_addr, reason):
         self.bounced.append((message, sender, from_addr, reason))
 
-    def throttle(self, user, until):
+    def throttle(self, user, until, headers):
         self.throttled = until
 
-    def is_throttled(self, user, now):
+    def is_throttled(self, user, now, headers):
         return self.throttled
 
     def get_instantaneous_frequency(self, user, now, headers):

@@ -190,7 +190,9 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
-                if queue.is_throttled(user, now):
+                headers = dict([(name, message.get(name))
+                                for name in loop_headers])
+                if queue.is_throttled(user, now, headers):
                     queue.collect_frequency_data(
                         message, self.ooo_loop_headers)
                     log.info("Message discarded, user throttled: %s" %
@@ -207,11 +209,10 @@ class PostOffice(object):
                     instant = queue.get_instantaneous_frequency
                     average = queue.get_average_frequency
                     interval = datetime.timedelta(minutes=4*1/freq)
-                    headers = dict([(name, message.get(name))
-                                    for name in loop_headers])
                     if (instant(user, now, headers) > freq or
                         average(user, now, interval, headers) > freq):
-                        queue.throttle(user, now + self.ooo_throttle_period)
+                        queue.throttle(user, now + self.ooo_throttle_period,
+                                       headers)
                         queue.collect_frequency_data(message, loop_headers)
                         log.info("Message discarded, user triggered "
                                  "throttle: %s" % _log_message(message))
