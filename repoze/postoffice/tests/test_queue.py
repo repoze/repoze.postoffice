@@ -331,6 +331,22 @@ class TestQueue(unittest.TestCase):
         now += timedelta(minutes=6)
         self.failIf(queue.is_throttled(user, now))
 
+    def test_throttle_with_headers(self):
+        from datetime import datetime
+        from datetime import timedelta
+        queue = self._make_one()
+        user = 'Harry'
+        now = datetime(2010, 5, 12, 2, 42)
+        headers = dict(A='foo', B='bar')
+        self.failIf(queue.is_throttled(user, now, headers))
+        queue.throttle(user, now + timedelta(minutes=5), headers)
+        self.failUnless(queue.is_throttled(user, now, headers))
+        self.failIf(queue.is_throttled(user, now))
+        now += timedelta(minutes=6)
+        self.failIf(queue.is_throttled(user, now, headers))
+        now += timedelta(minutes=6)
+        self.failIf(queue.is_throttled(user, now, headers))
+
 class TestQueuedMessage(unittest.TestCase):
     def test_it(self):
         from repoze.postoffice.queue import _QueuedMessage

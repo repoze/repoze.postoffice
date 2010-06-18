@@ -1,6 +1,7 @@
 from BTrees.IOBTree import IOBTree
 from BTrees.OOBTree import OOBTree
 from persistent import Persistent
+from persistent.dict import PersistentDict
 from persistent.list import PersistentList
 from ZODB.blob import Blob
 
@@ -279,31 +280,51 @@ class Queue(Persistent):
                 count += 1
         return 60.0 * count / _timedelta_as_seconds(interval)
 
-    def throttle(self, user, until):
+    def throttle(self, user, until, headers=None):
         """
         Marks the user as throttled until the specified time. 'user' is the
         value of the 'From' field in sent messages. 'until' is an instance of
-        datetime.datetime.
+        datetime.datetime.  'headers', if specified, is a dictionary of header
+        names and values.  Only incoming messages which match these headers
+        will be throttled.
         """
         freq_data = self._freq_data.get(user)
         if freq_data is None:
             freq_data = _FreqData()
             self._freq_data[user] = freq_data
-        freq_data.throttle = until
 
-    def is_throttled(self, user, now):
+        if headers is None:
+            key = ()
+        else:
+            key = tuple(sorted(headers.items()))
+
+        freq_data.throttles[key] = until
+
+    def is_throttled(self, user, now, headers=None):
         """
         Returns boolean indicating whether user is throttled at time indicated
-        by 'now'.  'now' is an instance of datetime.datetime.
+        by 'now'. 'now' is an instance of datetime.datetime. 'headers', if
+        specified, is a dictionary of header names and values. Only incoming
+        messages which match these headers are throttled.
         """
+
         freq_data = self._freq_data.get(user)
         if freq_data is None:
             return False
-        if freq_data.throttle is None:
+
+        if headers is None:
+            key = ()
+        else:
+            key = tuple(sorted(headers.items()))
+
+        throttles = freq_data.throttles
+        if key not in throttles:
             return False
-        if freq_data.throttle < now:
-            freq_data.throttle = None
+
+        if throttles[key] < now:
+            del throttles[key]
             return False
+
         return True
 
     @staticmethod
@@ -338,7 +359,9 @@ class _QueuedMessage(Persistent):
         return self._v_message
 
 class _FreqData(PersistentList):
-    throttle = None
+    def __init__(self):
+        super(_FreqData, self).__init__()
+        self.throttles = PersistentDict()
 
 def _new_id(container):
     # Use numeric incrementally increasing ids to preserve FIFO order
