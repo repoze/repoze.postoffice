@@ -33,6 +33,7 @@ set up as well as the location of the incoming Maildir::
   # Optional parameters
   zodb_path = /postoffice
   ooo_loop_frequency = 60 # 1 Hertz
+  ooo_loop_headers = To,Subject
   ooo_throttle_period = 300 # 5 minutes
   max_message_size = 500m
 
@@ -51,6 +52,12 @@ threshold is reached by a particular user, messages from that user will be
 discarded for period of time in an attempt to break a possible out of office
 auto-reply loop. If not specified, no check is performed on frequency of
 incoming messages.
+
+`ooo_loop_headers` optionally causes loop detection to use the specified email
+headers as discriminators.  If specified, these headers must match for incoming
+messages to trigger the ooo throttle.  If not specified, no header matching is
+done, and messages need only be sent from the same user to the same queue to
+trigger the throttle.
 
 `ooo_throttle_period` specifies the amount of time, in minutes, for which a
 user's incoming mail will be discarded if a loop detection is in use and the
@@ -134,11 +141,12 @@ Messages containing this header are discarded.
 Out of office messages sent by certain clients (Microsoft) will typically not
 use either of the above standards to indicate an automated reply. As a last
 line of defense, `repoze.postoffice` also tracks the frequency of incoming
-mail by email address. When the number of messages arriving from the same user
-surpasses a particular, assumedly inhuman, threshold, a temporary block is
-placed on messages from that user, such that all messages from that user are
-discarded for a certain period of time, hopefully breaking the auto reply
-feedback loop.
+mail by email address and, optionally, other headers specified by the
+'ooo_loop_headers' configuration option. When the number of messages arriving
+from the same user surpasses a particular, assumedly inhuman, threshold, a
+temporary block is placed on messages from that user, such that all messages
+from that user are discarded for a certain period of time, hopefully breaking
+the auto reply feedback loop.
 
 Consuming Queues
 ================

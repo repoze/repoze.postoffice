@@ -270,6 +270,31 @@ class TestQueue(unittest.TestCase):
         now = datetime(2010, 5, 13, 2, 46)
         self.assertAlmostEqual(fut('Harry', now), 0.25)
 
+    def test_get_instantaneous_filtered(self):
+        from datetime import datetime
+        now = datetime(2010, 5, 13, 2, 42, 30)
+        queue = self._make_one()
+        fut = queue.get_instantaneous_frequency
+        self.assertAlmostEqual(fut('Harry', now), 0.0)
+
+        message = DummyMessage('one')
+        message['Date'] = 'Wed, 13 May 2010 02:42:00'
+        message['A'] = 'foo'
+        message['B'] = 'bar'
+        queue.collect_frequency_data(message, headers=('A','B'))
+
+        message = DummyMessage('two')
+        message['Date'] = 'Wed, 13 May 2010 02:42:15'
+        message['A'] = 'foo'
+        message['B'] = 'baz'
+        queue.collect_frequency_data(message, headers=('A', 'B'))
+
+        self.assertAlmostEqual(fut('Harry', now), 4.0)
+        self.assertAlmostEqual(fut('Harry', now,
+                                   headers={'A': 'foo', 'B': 'baz'}), 4.0)
+        self.assertAlmostEqual(fut('Harry', now,
+                                   headers={'A': 'foo', 'B': 'bar'}), 2.0)
+
     def test_get_average_frequency(self):
         from datetime import datetime
         from datetime import timedelta

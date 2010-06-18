@@ -62,23 +62,30 @@ class Queue(Persistent):
         id = _new_id(self._messages)
         self._messages[id] = message
 
-    def collect_frequency_data(self, message):
+    def collect_frequency_data(self, message, headers=None):
         """
         Store data about frequency of message submission from sender of this
-        message.
+        message.  'headers', if specified, is a list of header names to store
+        along with times, for use as discriminators.
         """
         user = message['From']
+
         date = message.get('Date')
-        # Save frequency data
         if date is not None:
             date = datetime.datetime(*parsedate(date)[:6])
         else:
             date = datetime.datetime.now()
+
+        if headers is None:
+            headers = {}
+        else:
+            headers = dict([(name, message[name]) for name in headers])
+
         times = self._freq_data.get(user)
         if times is None:
             times = _FreqData()
             self._freq_data[user] = times
-        times.append(date)
+        times.append((date,headers))
 
     def pop_next(self):
         """
@@ -220,41 +227,54 @@ class Queue(Persistent):
         del self._quarantine[id]
         del message['X-Postoffice-Id']
 
-    def get_instantaneous_frequency(self, user, now):
+    def get_instantaneous_frequency(self, user, now, headers=None):
         """
         Gets the instantaneous frequency of message submission for the given
         user. The frequency is a floating point number representing messages
         per minute. The instantaneous frequency is calculated using the time
         interval between now and the time of the user's last submitted
         message. The 'user' argument matches the 'From' field of the incoming
-        messages.  If no data is available about user's last submitted message,
-        the frequency will be 0.0.
+        messages. 'headers', if specified, is a dictionary of header names and
+        values that will be use to filter results. Only messages for which
+        matching header data has ben stored will be included in the anaylysis.
+        If no data is available about user's last submitted message, the
+        frequency will be 0.0.
         """
+        if headers is None:
+            headers = {}
         freq_data = self._freq_data.get(user)
         if not freq_data:
             return 0.0
-        delta = now - freq_data[-1]
+        times = self._filter_freq_data(freq_data, headers)
+        if not times:
+            return 0.0
+        delta = now - times[-1]
         return 60.0 / _timedelta_as_seconds(delta)
 
-    def get_average_frequency(self, user, now, interval):
+    def get_average_frequency(self, user, now, interval, headers=None):
         """
         Gets the average frequency of message submission for the given user
         over the given time interval. The frequency is a floating point number
         representing messages per minute. The average frequency is calculated
-        by looking at the number of messages received from the user from now -
-        interval until now. The 'user' argument matches the 'From' field of
-        the incoming messages. The interval argument should be an instance of
-        `datetime.timedelta`. Frequency data for messages received prior to
-        the interval of interest will be deleted.
+        by looking at the number of messages received from the user from now
+        minus the interval until now. The 'user' argument matches the 'From'
+        field of the incoming messages. The interval argument should be an
+        instance of `datetime.timedelta`. 'headers', if specified, is a
+        dictionary of header names and values that will be use to filter
+        results. Only messages for which matching header data has ben stored
+        will be included in the anaylysis. Frequency data for messages
+        received prior to the interval of interest will be deleted.
         """
+        if headers is None:
+            headers = {}
         freq_data = self._freq_data.get(user)
         start = now - interval
-        while freq_data and freq_data[0] < start:
+        while freq_data and freq_data[0][0] < start:
             del freq_data[0]
         if not freq_data:
             return 0.0
         count = 0
-        for timestamp in freq_data:
+        for timestamp in self._filter_freq_data(freq_data, headers):
             if timestamp < now:
                 count += 1
         return 60.0 * count / _timedelta_as_seconds(interval)
@@ -285,6 +305,16 @@ class Queue(Persistent):
             freq_data.throttle = None
             return False
         return True
+
+    @staticmethod
+    def _filter_freq_data(freq_data, match_headers):
+        def _match(headers):
+            for k, v in match_headers.items():
+                if headers.get(k) != v:
+                    return False
+            return True
+
+        return [ts for ts, header_values in freq_data if _match(header_values)]
 
 class _QueuedMessage(Persistent):
     """
