@@ -294,6 +294,7 @@ class TestQueue(unittest.TestCase):
                                    headers={'A': 'foo', 'B': 'baz'}), 4.0)
         self.assertAlmostEqual(fut('Harry', now,
                                    headers={'A': 'foo', 'B': 'bar'}), 2.0)
+        self.assertAlmostEqual(fut('Harry', now, {'A': 'mickey'}), 0.0)
 
     def test_get_average_frequency(self):
         from datetime import datetime

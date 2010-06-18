@@ -592,6 +592,28 @@ class Test_send_mail(unittest.TestCase):
         self.assertEqual(smtp.sent, [('me', ['you', 'them'],
                                       message.as_string()),])
 
+class Test_read_message_headers(unittest.TestCase):
+    def test_it(self):
+        message = (
+            "From: me\n"
+            "To: you\n"
+            " and your mom\n"
+            "Subject: Hello\n"
+            "\n"
+            "Hi mate.\n"
+            "\n"
+        )
+        from cStringIO import StringIO
+        fp = StringIO(message)
+
+        from repoze.postoffice.api import _read_message_headers as fut
+        expected = dict(
+            From='me',
+            To='you and your mom',
+            Subject='Hello',
+        )
+        self.assertEqual(fut(fp), expected)
+
 class DummySMTPLib(object):
     def __init__(self):
         self.sent = []
@@ -715,17 +737,11 @@ class DummyQueue(list):
     interval = None
     match_headers = None
 
-    def __init__(self):
-        self.bounced = []
-
     def add(self, message):
         self.append(message)
 
     def pop_next(self):
         return self.pop(0)
-
-    def bounce(self, message, sender, from_addr, reason):
-        self.bounced.append((message, sender, from_addr, reason))
 
     def throttle(self, user, until, headers):
         self.throttled = until
