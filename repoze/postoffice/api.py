@@ -61,6 +61,8 @@ class PostOffice(object):
                                      '/postoffice')
         self.ooo_loop_frequency = _get_opt_float(
             config, MAIN_SECTION, 'ooo_loop_frequency', '0')
+        self.ooo_loop_headers = _get_opt_list(
+            config, MAIN_SECTION, 'ooo_loop_headers', '')
         self.ooo_throttle_period = datetime.timedelta(seconds=_get_opt_int(
             config, MAIN_SECTION, 'ooo_throttle_period', '300'))
         self.max_message_size = _get_opt_bytes(
@@ -172,6 +174,7 @@ class PostOffice(object):
                          _log_message(message))
             return
 
+        loop_headers = self.ooo_loop_headers
         now = message.get('Date')
         if now is not None:
             now = datetime.datetime(*parsedate(now)[:6])
@@ -188,7 +191,8 @@ class PostOffice(object):
                 name = configured['name']
                 queue = queues[name]
                 if queue.is_throttled(user, now):
-                    queue.collect_frequency_data(message)
+                    queue.collect_frequency_data(
+                        message, self.ooo_loop_headers)
                     log.info("Message discarded, user throttled: %s" %
                              _log_message(message))
                     break
@@ -200,18 +204,21 @@ class PostOffice(object):
                     # is 4 times the inverse of the the freqency. IE, if
                     # frequency is 0.25/minute, then 1/frequency is 4 minutes
                     # and interval to average over is 16 minutes.
+                    instant = queue.get_instantaneous_frequency
+                    average = queue.get_average_frequency
                     interval = datetime.timedelta(minutes=4*1/freq)
-                    if (queue.get_instantaneous_frequency(user, now) > freq or
-                        queue.get_average_frequency(user, now, interval) >
-                        freq):
+                    headers = dict([(name, message.get(name))
+                                    for name in loop_headers])
+                    if (instant(user, now, headers) > freq or
+                        average(user, now, interval, headers) > freq):
                         queue.throttle(user, now + self.ooo_throttle_period)
-                        queue.collect_frequency_data(message)
+                        queue.collect_frequency_data(message, loop_headers)
                         log.info("Message discarded, user triggered "
                                  "throttle: %s" % _log_message(message))
                         break
 
                 queue.add(message)
-                queue.collect_frequency_data(message)
+                queue.collect_frequency_data(message, loop_headers)
                 if log is not None:
                     log.info("Message added to queue, %s: %s" %
                              (name, _log_message(message))
@@ -254,6 +261,12 @@ def _get_opt_float(config, section, name, default=_marker):
         return float(value)
     except:
         raise ValueError('Value for %s must be a floating point number' % name)
+
+def _get_opt_list(config, section, name, default=_marker):
+    value = _get_opt(config, section, name, default)
+    if not value:
+        return []
+    return [item.strip() for item in value.split(',')]
 
 def _get_opt_bytes(config, section, name, default=_marker):
     value = _get_opt(config, section, name, default).lower()

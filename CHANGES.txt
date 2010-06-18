@@ -3,6 +3,9 @@ Unreleased
 
 - Fixed bug in parsing headers with no values.
 
+- Added ability to use arbitrary message headers as discriminator values in
+  out of office loop detection.
+
 0.1 (2010-06-03)
 ----------------
 

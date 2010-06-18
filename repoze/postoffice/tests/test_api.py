@@ -49,6 +49,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 0)
+        self.assertEqual(po.ooo_loop_headers, [])
         self.assertEqual(po.ooo_throttle_period, timedelta(minutes=5))
         self.assertEqual(po.max_message_size, 0)
 
@@ -60,6 +61,7 @@ class TestAPI(unittest.TestCase):
             "maildir = test/Maildir\n"
             "zodb_path = /path/to/postoffice\n"
             "ooo_loop_frequency = 63\n"
+            "ooo_loop_headers = A, B\n"
             "ooo_throttle_period = 500\n"
             "max_message_size = 500mb\n"
         ))
@@ -67,6 +69,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(po.maildir, 'test/Maildir')
         self.assertEqual(po.zodb_path, '/path/to/postoffice')
         self.assertEqual(po.ooo_loop_frequency, 63)
+        self.assertEqual(po.ooo_loop_headers, ['A', 'B'])
         self.assertEqual(po.ooo_throttle_period, timedelta(seconds=500))
         self.assertEqual(po.max_message_size, 500 * 1<<20)
 
@@ -473,6 +476,34 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(A.throttled, datetime.datetime(2010, 5, 12, 2, 47))
         self.assertEqual(A.interval, datetime.timedelta(minutes=16.0))
 
+    def test_throttle_passes_headers(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Date'] = 'Wed, 12 May 2010 02:42:00'
+        msg1['A'] = 'foo'
+        msg1['B'] = 'bar'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "ooo_loop_frequency = 0.25\n"
+            "ooo_loop_headers = A, B\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        po.import_messages(log)
+        self.assertEqual(A.match_headers, {'A': 'foo', 'B': 'bar'})
+
     def test_missing_from(self):
         import datetime
         log = DummyLogger()
@@ -682,6 +713,7 @@ class DummyQueue(list):
     instant_freq = 0
     average_freq = 0
     interval = None
+    match_headers = None
 
     def __init__(self):
         self.bounced = []
@@ -701,13 +733,15 @@ class DummyQueue(list):
     def is_throttled(self, user, now):
         return self.throttled
 
-    def get_instantaneous_frequency(self, user, now):
+    def get_instantaneous_frequency(self, user, now, headers):
+        self.match_headers = headers
         return self.instant_freq
 
-    def get_average_frequency(self, user, now, interval):
+    def get_average_frequency(self, user, now, interval, headers):
         self.interval = interval
+        self.match_headers = headers
         return self.average_freq
 
-    def collect_frequency_data(self, message):
+    def collect_frequency_data(self, message, headers):
         pass
 
