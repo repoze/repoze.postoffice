@@ -49,9 +49,9 @@ are pulled.
 `ooo_loop_frequency` specifies the threshold frequency of incoming messages
 from the same user to the same queue, in messages per minute. When the
 threshold is reached by a particular user, messages from that user will be
-discarded for period of time in an attempt to break a possible out of office
-auto-reply loop. If not specified, no check is performed on frequency of
-incoming messages.
+marked as rejected for period of time in an attempt to break a possible out
+of office auto-reply loop. If not specified, no check is performed on
+frequency of incoming messages.
 
 `ooo_loop_headers` optionally causes loop detection to use the specified email
 headers as discriminators.  If specified, these headers must match for incoming
@@ -60,16 +60,16 @@ done, and messages need only be sent from the same user to the same queue to
 trigger the throttle.
 
 `ooo_throttle_period` specifies the amount of time, in minutes, for which a
-user's incoming mail will be discarded if a loop detection is in use and the
-user reaches the `ooo_loop_frequency` threshold.  Defaults to 5 minutes.  If
-`ooo_loop_frequency` is not set, this setting has no effect.
+user's incoming mail will be marked as rejected if loop detection is in use
+and the user reaches the `ooo_loop_frequency` threshold. Defaults to 5
+minutes. If `ooo_loop_frequency` is not set, this setting has no effect.
 
 `max_message_size` sets the maximum size, in bytes, of incoming messages.
-Messages which exceed this limit will be discarded. The sender will not be
-informed. (This might be a later feature.) The suffixes 'k', 'm' or 'g' may be
-used to specify that the number of bytes is expressed in kilobytes, megabytes
-or gigabytes, respectively. A number without suffix will be interpreted as
-bytes. If not set, no limit will be imposed on incoming message size.
+Messages which exceed this limit will have their payloads discarded and will
+be marked as rejected. The suffixes 'k', 'm' or 'g' may be used to specify
+that the number of bytes is expressed in kilobytes, megabytes or gigabytes,
+respectively. A number without suffix will be interpreted as bytes. If not
+set, no limit will be imposed on incoming message size.
 
 Each message queue is configured in a section with the prefix 'queue:'::
 
@@ -130,13 +130,16 @@ detection, this can lead to a large amount of junk content being generated
 very quickly.
 
 When a new email enters the system, `repoze.postoffice` first checks for some
-headers that could be set by well behaved MTA's to indicate automated responses
-and discards messages which match these known heuristics.  First, the
-non-standard, but widely supported, 'Precedence' header is checked and messages
-with a precedence of 'bulk', 'junk', or 'list' are discarded.  Next
-`repoze.postoffice` will check for the presence of the 'Auto-Submitted' header
-which is described in rfc3834 and is standard, but not yet widely supported.
-Messages containing this header are discarded.
+headers that could be set by well behaved MTA's to indicate automated
+responses and marks as rejected messages which match these known heuristics.
+First, the non-standard, but widely supported, 'Precedence' header is checked
+and messages with a precedence of 'bulk', 'junk', or 'list' are marked as
+rejected. Next `repoze.postoffice` will check for the presence of the
+'Auto-Submitted' header which is described in rfc3834 and is standard, but not
+yet widely supported. Messages containing this header are marked. In either of
+these two cases, the incoming message is marked by adding the header::
+
+  X-Postoffice-Rejected: Auto-response
 
 Out of office messages sent by certain clients (Microsoft) will typically not
 use either of the above standards to indicate an automated reply. As a last
@@ -145,8 +148,29 @@ mail by email address and, optionally, other headers specified by the
 'ooo_loop_headers' configuration option. When the number of messages arriving
 from the same user surpasses a particular, assumedly inhuman, threshold, a
 temporary block is placed on messages from that user, such that all messages
-from that user are discarded for a certain period of time, hopefully breaking
-the auto reply feedback loop.
+from that user are marked as rejected for a certain period of time, hopefully
+breaking the auto reply feedback loop. Messages which trigger are fall under a
+throttle are marked with header::
+
+  X-Postoffice-Rejected: Throttled
+
+Messages marked with the 'X-Postoffice-Rejected' header are still conveyed to
+the client.  It is up to the client to check for this header and take
+appropriate action.  This allows the client to choose and take appropriate
+action, such as bouncing with a particular bounce message, etc.
+
+Message Size Limit
+==================
+
+If 'max_message_size' is specified in the configuration, messages which exceed
+this size will have their payloads (body and any attachments) discarded and
+will be marked with the header:
+
+  X-Postoffice-Rejected: Maximum Message Size Exceeded
+
+The trimmed message is still conveyed to the client, which should check for
+the 'X-Postoffice-Rejected' header and take appropriate action, possibly
+including bouncing the message with an appropriate bounce message.
 
 Consuming Queues
 ================

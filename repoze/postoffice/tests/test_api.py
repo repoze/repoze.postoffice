@@ -328,8 +328,12 @@ class TestAPI(unittest.TestCase):
         po.reconcile_queues()
         po.import_messages(log)
         A = queues['A']
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'],
+                         'Maximum Message Size Exceeded')
+        self.failUnless(A[0].get_payload().startswith(
+            'Message body discarded.'))
+        self.assertEqual(len(log.infos), 3)
 
     def test_import_message_auto_reply_precedence_header(self):
         log = DummyLogger()
@@ -356,8 +360,9 @@ class TestAPI(unittest.TestCase):
 
         self.assertEqual(len(self.messages), 0)
         A = queues['A']
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Auto-response')
+        self.assertEqual(len(log.infos), 3, log.infos)
 
     def test_import_message_auto_reply_rfc3834(self):
         log = DummyLogger()
@@ -384,8 +389,9 @@ class TestAPI(unittest.TestCase):
 
         self.assertEqual(len(self.messages), 0)
         A = queues['A']
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Auto-response')
+        self.assertEqual(len(log.infos), 3)
 
     def test_user_throttled(self):
         import datetime
@@ -412,8 +418,9 @@ class TestAPI(unittest.TestCase):
         po.import_messages(log)
 
         self.assertEqual(len(self.messages), 0)
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Throttled')
+        self.assertEqual(len(log.infos), 3)
 
     def test_throttle_user_instant_freq(self):
         import datetime
@@ -441,8 +448,9 @@ class TestAPI(unittest.TestCase):
         po.import_messages(log)
 
         self.assertEqual(len(self.messages), 0)
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Throttled')
+        self.assertEqual(len(log.infos), 3)
         self.assertEqual(A.throttled, datetime.datetime(2010, 5, 12, 2, 47))
 
     def test_throttle_user_average_freq(self):
@@ -471,8 +479,9 @@ class TestAPI(unittest.TestCase):
         po.import_messages(log)
 
         self.assertEqual(len(self.messages), 0)
-        self.assertEqual(len(A), 0)
-        self.assertEqual(len(log.infos), 2)
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Throttled')
+        self.assertEqual(len(log.infos), 3)
         self.assertEqual(A.throttled, datetime.datetime(2010, 5, 12, 2, 47))
         self.assertEqual(A.interval, datetime.timedelta(minutes=16.0))
 

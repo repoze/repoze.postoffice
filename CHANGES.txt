@@ -6,6 +6,15 @@ Unreleased
 - Added ability to use arbitrary message headers as discriminator values in
   out of office loop detection.
 
+- When messages exceed maximum message size, are throttled or are found to be
+  an auto-response, they are no longer discarded.  Instead these messages get
+  an 'X-Postoffice-Rejected' header added where the value gives the reason for
+  rejection.  These messages are then consumable by clients in the normal way.
+  It is up to the client to detect the 'X-Postoffice-Rejected' header and take
+  appropriate action.  This change was made to allow the client to determine
+  what, if any, sort of bounce message should be generated if any of these
+  conditions are true.
+
 0.1 (2010-06-03)
 ----------------
 

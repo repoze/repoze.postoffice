@@ -21,7 +21,6 @@ from repoze.zodbconn.uri import db_from_uri
 
 MAIN_SECTION = 'post office'
 _marker = object()
-_discarded = object()
 
 class PostOffice(object):
     """
@@ -115,6 +114,9 @@ class PostOffice(object):
         If a queue has been removed from the configuration but still has
         queued messages a warning is logged and queue is not removed.
         """
+        if log is None:
+            log = _NullLog()
+
         # Reconcile configured queues with queues in db
         configured = self.configured_queues
         with self._get_root() as root:
@@ -123,22 +125,19 @@ class PostOffice(object):
                 name = queue['name']
                 if name not in root:
                     root[name] = self.Queue()
-                    if log is not None:
-                        log.info('Created new postoffice queue: %s' % name)
+                    log.info('Created new postoffice queue: %s' % name)
 
             # Remove old queues if empty
             configured_names = set([q['name'] for q in configured])
             for name, queue in root.items():
                 if name not in configured_names:
                     if len(queue):
-                        if log is not None:
-                            log.warn(
-                                "Queue removed from configuration still has "
-                                "messages: %s" % name
-                            )
+                        log.warn(
+                            "Queue removed from configuration still has "
+                            "messages: %s" % name
+                        )
                     else:
-                        if log is not None:
-                            log.info('Removed old postoffice queue: %s' % name)
+                        log.info('Removed old postoffice queue: %s' % name)
                         del root[name]
 
     def import_messages(self, log=None):
@@ -154,32 +153,20 @@ class PostOffice(object):
         keys.sort()
         for key in keys:
             message = maildir.get_message(key)
-            if message is _discarded:
-                maildir.remove(key)
-                continue
             self._import_message(message, log)
             self._archive_message(maildir, message, key)
-        if log is not None:
-            n = len(keys)
-            if n == 1:
-                log.info("Processed one message.")
-            else:
-                log.info("Processed %d messages." % n)
+        n = len(keys)
+        if n == 1:
+            log.info("Processed one message.")
+        else:
+            log.info("Processed %d messages." % n)
 
     def _import_message(self, message, log):
         user = message.get('From')
         if user is None:
-            if log is not None:
-                log.info("Message discarded: no 'From' header: %s" %
-                         _log_message(message))
+            log.info("Message discarded: no 'From' header: %s" %
+                     _log_message(message))
             return
-
-        loop_headers = self.ooo_loop_headers
-        now = message.get('Date')
-        if now is not None:
-            now = datetime.datetime(*parsedate(now)[:6])
-        else:
-            now = datetime.datetime.now()
 
         for configured in self.configured_queues:
             filters = configured['filters']
@@ -190,46 +177,20 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
-                headers = dict([(name, message.get(name))
-                                for name in loop_headers])
-                if queue.is_throttled(user, now, headers):
-                    queue.collect_frequency_data(
-                        message, self.ooo_loop_headers)
-                    log.info("Message discarded, user throttled: %s" %
-                             _log_message(message))
-                    break
-
-                freq = self.ooo_loop_frequency
-                if freq:
-                    # If instanteous or average frequency exceeds limit,
-                    # throttle user. For average frequency, use interval that
-                    # is 4 times the inverse of the the freqency. IE, if
-                    # frequency is 0.25/minute, then 1/frequency is 4 minutes
-                    # and interval to average over is 16 minutes.
-                    instant = queue.get_instantaneous_frequency
-                    average = queue.get_average_frequency
-                    interval = datetime.timedelta(minutes=4*1/freq)
-                    if (instant(user, now, headers) > freq or
-                        average(user, now, interval, headers) > freq):
-                        queue.throttle(user, now + self.ooo_throttle_period,
-                                       headers)
-                        queue.collect_frequency_data(message, loop_headers)
-                        log.info("Message discarded, user triggered "
-                                 "throttle: %s" % _log_message(message))
-                        break
+                self._check_for_auto_response_and_loops(
+                    self, queue, message, log
+                )
 
                 queue.add(message)
-                queue.collect_frequency_data(message, loop_headers)
-                if log is not None:
-                    log.info("Message added to queue, %s: %s" %
-                             (name, _log_message(message))
-                             )
-                break
+                queue.collect_frequency_data(message, self.ooo_loop_headers)
+                log.info("Message added to queue, %s: %s" %
+                         (name, _log_message(message))
+                         )
+            break
 
         else:
-            if log is not None:
-                log.info("Message discarded, no matching queues: %s" %
-                         _log_message(message))
+            log.info("Message discarded, no matching queues: %s" %
+                     _log_message(message))
 
     def _archive_message(self, maildir, message, key):
         # XXX It would be nice to wire into transaction with a data manager
@@ -241,6 +202,58 @@ class PostOffice(object):
             folder = maildir.add_folder(name)
         folder.add(message)
         maildir.remove(key)
+
+    def _check_for_auto_response_and_loops(self, po, queue, message, log):
+        # Like Mailman, if a message has "Precedence: bulk|junk|list",
+        # reject it.  The Precedence header is non-standard, yet
+        # widely supported.
+        precedence = message.get('Precedence', '').lower()
+        if precedence in ('bulk', 'junk', 'list'):
+            log.info("Message rejected, automatic reply: %s" %
+                     _log_message(message))
+            message['X-Postoffice-Rejected'] = 'Auto-response'
+
+        # rfc3834 is the standard way to reject automated responses, but
+        # it is not yet widely supported.
+        auto_submitted = message.get('Auto-Submitted', '').lower()
+        if auto_submitted.startswith('auto'):
+            log.info("Message rejected, automatic reply: %s" %
+                     _log_message(message))
+            message['X-Postoffice-Rejected'] = 'Auto-response'
+
+        # Loop Detection
+        user = message['From']
+        now = message.get('Date')
+        if now is not None:
+            now = datetime.datetime(*parsedate(now)[:6])
+        else:
+            now = datetime.datetime.now()
+
+        headers = dict([(name, message.get(name))
+                        for name in self.ooo_loop_headers])
+        freq = self.ooo_loop_frequency
+        if queue.is_throttled(user, now, message):
+            log.info("Message rejected, user throttled: %s" %
+                     _log_message(message))
+            message['X-Postoffice-Rejected'] = 'Throttled'
+
+        elif freq:
+            # If instanteous or average frequency exceeds limit,
+            # throttle user. For average frequency, use interval that
+            # is 4 times the inverse of the the freqency. IE, if
+            # frequency is 0.25/minute, then 1/frequency is 4 minutes
+            # and interval to average over is 16 minutes.
+            instant = queue.get_instantaneous_frequency
+            average = queue.get_average_frequency
+            interval = datetime.timedelta(minutes=4*1/freq)
+            if (instant(user, now, headers) > freq or
+                average(user, now, interval, headers) > freq):
+                queue.throttle(user, now + self.ooo_throttle_period,
+                               headers)
+                log.info("Message rejected, user triggered "
+                         "throttle: %s" % _log_message(message))
+                message['X-Postoffice-Rejected'] = 'Throttled'
+
 
 def _get_opt(config, section, name, default=_marker):
     if config.has_option(section, name):
@@ -388,40 +401,22 @@ def _send_mail(from_addr, to_addrs, message, smtplib=smtplib):
 
 def _message_factory_factory(po, wrapped, log):
     def factory(fp):
-        headers = _read_message_headers(fp)
-
-        # Check for signs of automated reply
-
-        # Like Mailman, if a message has "Precedence: bulk|junk|list",
-        # discard it.  The Precedence header is non-standard, yet
-        # widely supported.
-        precedence = headers.get('Precedence', '').lower()
-        if precedence in ('bulk', 'junk', 'list'):
-            if log is not None:
-                log.info("Message discarded, automatic reply: %s" %
-                         _log_message(headers))
-            return _discarded
-
-        # rfc3834 is the standard way to discard automated responses, but
-        # it is not yet widely supported.
-        auto_submitted = headers.get('Auto-Submitted', '').lower()
-        if auto_submitted.startswith('auto'):
-            if log is not None:
-                log.info("Message discarded, automatic reply: %s" %
-                         _log_message(headers))
-            return _discarded
-
         # Check size against maximum
         if po.max_message_size:
             fname = fp.name
             if os.path.getsize(fname) > po.max_message_size:
-                # XXX Bounce instead of discard? (Bounce emails user.)
-                if log is not None:
-                    log.info("Message discarded, exceeds max size limit: %s"
-                             % _log_message(headers))
-                return _discarded
+                headers = _read_message_headers(fp)
+                log.info("Message rejected, exceeds max size limit: %s"
+                         % _log_message(headers))
+                message = wrapped()
+                for k,v in headers.items():
+                    message[k] = v
+                message['X-Postoffice-Rejected'] = \
+                       'Maximum Message Size Exceeded'
+                message.set_payload('Message body discarded.  '
+                                    'Maximum message size exceeded.\n\n')
+                return message
 
-        fp.seek(0)
         return wrapped(fp)
 
     return factory
@@ -441,3 +436,13 @@ def _read_message_headers(fp):
         header, value = line.split(':', 1)
         headers[header] = value.strip()
     return headers
+
+class _NullLog(object):
+    def info(self, *args):
+        pass
+
+    def warn(self, *args):
+        pass
+
+    def error(self, *args):
+        pass
