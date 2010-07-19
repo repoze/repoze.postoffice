@@ -1,7 +1,7 @@
 Unreleased
 ----------
 
-- ...
+- Fixed divide by zero error when calculating instantaneous message frequency.
 
 0.2 (2010-06-29)
 ----------------

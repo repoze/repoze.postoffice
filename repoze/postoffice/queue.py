@@ -249,8 +249,10 @@ class Queue(Persistent):
         times = self._filter_freq_data(freq_data, headers)
         if not times:
             return 0.0
-        delta = now - times[-1]
-        return 60.0 / _timedelta_as_seconds(delta)
+        delta = _timedelta_as_seconds(now - times[-1])
+        if delta == 0.0:
+            return float('inf')
+        return 60.0 / delta
 
     def get_average_frequency(self, user, now, interval, headers=None):
         """

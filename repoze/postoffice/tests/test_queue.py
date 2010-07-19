@@ -270,6 +270,17 @@ class TestQueue(unittest.TestCase):
         now = datetime(2010, 5, 13, 2, 46)
         self.assertAlmostEqual(fut('Harry', now), 0.25)
 
+    def test_get_instantaneous_frequency_infinite(self):
+        from datetime import datetime
+        now = datetime(2010, 5, 13, 2, 42, 00)
+        queue = self._make_one()
+        fut = queue.get_instantaneous_frequency
+        self.assertAlmostEqual(fut('Harry', now), 0.0)
+        message = DummyMessage('one')
+        message['Date'] = 'Wed, 13 May 2010 02:42:00'
+        queue.collect_frequency_data(message)
+        self.assertEqual(fut('Harry', now), float('inf'))
+
     def test_get_instantaneous_filtered(self):
         from datetime import datetime
         now = datetime(2010, 5, 13, 2, 42, 30)
