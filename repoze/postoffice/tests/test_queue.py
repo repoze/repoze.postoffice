@@ -393,6 +393,12 @@ class Test_open_queue(unittest.TestCase):
         closer()
         self.failUnless(self.db.closed)
 
+    def test_close_on_key_error(self):
+        q = 'one'
+        self._monkey_patch(dict(one=q))
+        self.assertRaises(KeyError, self._call_fut, 'two')
+        self.failUnless(self.db.closed)
+
 from repoze.postoffice.message import Message
 class DummyMessage(Message):
     def __init__(self, body=None):

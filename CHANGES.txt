@@ -3,6 +3,9 @@ Unreleased
 
 - Fixed divide by zero error when calculating instantaneous message frequency.
 
+- Fixed bug in repoze.postoffice.queue.open_queue where a ZEO connection would
+  be left open if there was a KeyError on the queue name.
+
 0.2 (2010-06-29)
 ----------------
 

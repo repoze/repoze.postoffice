@@ -22,7 +22,8 @@ def open_queue(zodb_uri, queue_name, path='postoffice'):
     queues = conn.root()
     for name in path.strip('/').split('/'):
         queues = queues[name]
-    return queues[queue_name], _Closer(db, conn)
+    closer = _Closer(db, conn)
+    return queues[queue_name], closer
 
 class _Closer(object):
     def __init__(self, db, conn):
