@@ -131,12 +131,42 @@ class TestQueue(unittest.TestCase):
         queue = self._make_one()
         send = DummySend()
         queue.bounce(bounced, send, 'Bouncer <bouncer@example.com>',
-                     u'Not entertaining enough.')
+                     u'Not entertaining eno\xfagh.')
 
         self.assertEqual(len(send.sent), 1)
         fromaddr, toaddrs, message = send.sent[0]
         self.assertEqual(fromaddr, 'Bouncer <bouncer@example.com>')
         self.assertEqual(message['From'], 'Bouncer <bouncer@example.com>')
+        self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
+        self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
+        self.failUnless(message['Subject'].startswith(
+            'Your message to Submissions'), message['Subject'])
+        body = base64.b64decode(message.get_payload())
+        self.failUnless(
+            u'Not entertaining eno\xfagh.'.encode('UTF-8') in body, body
+        )
+
+    def test_bounce_sender_unicode(self):
+        import base64
+        from repoze.postoffice.message import Message
+        class DummySend(object):
+            def __init__(self):
+                self.sent = []
+            def __call__(self, fromaddr, toaddrs, message):
+                self.sent.append((fromaddr, toaddrs, message))
+
+        bounced = Message()
+        bounced['To'] = 'Submissions <submissions@example.com>'
+        bounced['From'] = 'Chris Rossi <chris@example.com>'
+        queue = self._make_one()
+        send = DummySend()
+        queue.bounce(bounced, send, u'Bounc\xe9r <bouncer@example.com>',
+                     'Not entertaining enough.')
+
+        self.assertEqual(len(send.sent), 1)
+        fromaddr, toaddrs, message = send.sent[0]
+        self.assertEqual(fromaddr, u'Bounc\xe9r <bouncer@example.com>')
+        self.assertEqual(message['From'], u'Bounc\xe9r <bouncer@example.com>')
         self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
         self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(message['Subject'].startswith(
@@ -187,6 +217,33 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(notice['From'], 'Oopsy Daisy <error@example.com>')
         self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
         self.assertEqual(notice['To'], 'Chris Rossi <chris@example.com>')
+        self.failUnless(notice['Subject'].startswith('An error has occurred'))
+        body = base64.b64decode(notice.get_payload())
+        self.failUnless('System administrators have been informed' in body)
+
+
+    def test_quarantine_notice_unicode_sender(self):
+        import base64
+        from repoze.postoffice.message import Message
+        class DummySend(object):
+            def __init__(self):
+                self.sent = []
+            def __call__(self, fromaddr, toaddrs, message):
+                self.sent.append((fromaddr, toaddrs, message))
+
+        message = Message()
+        message['To'] = 'Submissions <submissions@example.com>'
+        message['From'] = u'Chris Ross\xed <chris@example.com>'
+        queue = self._make_one()
+        send = DummySend()
+        queue.quarantine(message, (None, None, None), send,
+                         u'Oopsy Daisy <error@example.com>')
+        self.assertEqual(len(send.sent), 1)
+        fromaddr, toaddrs, notice = send.sent[0]
+        self.assertEqual(fromaddr, 'Oopsy Daisy <error@example.com>')
+        self.assertEqual(notice['From'], 'Oopsy Daisy <error@example.com>')
+        self.assertEqual(toaddrs, [u'Chris Ross\xed <chris@example.com>'])
+        self.assertEqual(notice['To'], u'Chris Ross\xed <chris@example.com>')
         self.failUnless(notice['Subject'].startswith('An error has occurred'))
         body = base64.b64decode(notice.get_payload())
         self.failUnless('System administrators have been informed' in body)

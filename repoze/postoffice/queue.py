@@ -133,9 +133,7 @@ class Queue(Persistent):
         toaddrs = [message['From'],]
         if bounce_message is None:
             if bounce_reason is None:
-                bounce_reason = 'Email message is invalid.'
-            elif isinstance(bounce_reason, unicode):
-                bounce_reason = bounce_reason.encode('UTF-8')
+                bounce_reason = u'Email message is invalid.'
             if 'Date' in message:
                 date = message['Date']
             else:
@@ -146,9 +144,9 @@ class Queue(Persistent):
             bounce_message['Subject'] = subject
             bounce_message['From'] = bounce_from_addr
             bounce_message['To'] = message['From']
-            bounce_message.set_payload(_default_bounce_body %
-                                (date, bounce_to, bounce_reason), 'UTF-8'
-                                )
+            body = _default_bounce_body % (date, bounce_to, bounce_reason)
+            bounce_message.set_payload(body.encode('UTF-8'), 'UTF-8')
+
         send(bounce_from_addr, toaddrs, bounce_message)
 
     def quarantine(self, message, error, send=None, notice_from=None):
@@ -195,8 +193,8 @@ class Queue(Persistent):
                 date = message['Date']
             else:
                 date = datetime.datetime.now().ctime()
-            notice.set_payload(_quarantine_notice_body % (date, message['To']),
-                               'UTF-8')
+            body = _quarantine_notice_body % (date, message['To'])
+            notice.set_payload(body.encode('UTF-8'), 'UTF-8')
             send(notice_from, [message['From'],], notice)
 
     def get_quarantined_messages(self):
@@ -377,7 +375,7 @@ def _timedelta_as_seconds(td):
             td.seconds +
             td.microseconds / 1000000)
 
-_default_bounce_body = """
+_default_bounce_body = u"""
 Your email, sent on %s to %s has bounced for the following reason:
 
 \t%s
@@ -386,7 +384,7 @@ If you feel you are receiving this message in error please contact your system
 administrator.
 """.lstrip()
 
-_quarantine_notice_body = """
+_quarantine_notice_body = u"""
 An error has occurred while processing your email, sent on %s to %s.
 
 System administrators have been informed and will take corrective action

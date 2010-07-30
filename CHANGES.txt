@@ -1,7 +1,8 @@
 Unreleased
 ----------
 
-- ...
+- Fixed bug in processing body of bounce messages when non-ascii unicode
+  characters are present.
 
 0.3 (2010-07-20)
 ----------------
