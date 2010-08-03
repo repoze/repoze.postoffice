@@ -147,6 +147,7 @@ class Queue(Persistent):
             body = _default_bounce_body % (date, bounce_to, bounce_reason)
             bounce_message.set_payload(body.encode('UTF-8'), 'UTF-8')
 
+        bounce_message['X-Postoffice'] = 'Bounced'
         send(bounce_from_addr, toaddrs, bounce_message)
 
     def quarantine(self, message, error, send=None, notice_from=None):
@@ -193,6 +194,7 @@ class Queue(Persistent):
                 date = message['Date']
             else:
                 date = datetime.datetime.now().ctime()
+            notice['X-Postoffice'] = 'Bounced'
             body = _quarantine_notice_body % (date, message['To'])
             notice.set_payload(body.encode('UTF-8'), 'UTF-8')
             send(notice_from, [message['From'],], notice)

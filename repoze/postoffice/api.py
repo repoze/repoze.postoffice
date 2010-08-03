@@ -168,6 +168,11 @@ class PostOffice(object):
                      _log_message(message))
             return
 
+        if message.get('X-Postoffice') == 'Bounced':
+            log.info("Message discarded: ricocheted bounce message: %s" %
+                     _log_message(message))
+            return
+
         for configured in self.configured_queues:
             filters = configured['filters']
             if not filters or not _filters_match(filters, message):

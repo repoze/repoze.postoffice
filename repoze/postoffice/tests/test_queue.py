@@ -56,6 +56,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(message['Subject'].startswith(
             'Your message to Submissions'), message['Subject'])
+        self.assertEqual(message['X-Postoffice'], 'Bounced')
         body = base64.b64decode(message.get_payload())
         self.failUnless('has bounced' in body, body)
         self.failUnless('Last Tuesday' in body, body)
@@ -90,6 +91,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(message['Subject'].startswith(
             'Your message to Submissions'), message['Subject'])
+        self.assertEqual(message['X-Postoffice'], 'Bounced')
         body = base64.b64decode(message.get_payload())
         self.failUnless('Not entertaining enough.' in body, body)
 
@@ -107,14 +109,17 @@ class TestQueue(unittest.TestCase):
         bounced['From'] = 'Chris Rossi <chris@example.com>'
         queue = self._make_one()
         send = DummySend()
+        bounce_message = Message()
+        bounce_message.set_payload('TEST')
         queue.bounce(bounced, send, 'Bouncer <bouncer@example.com>',
-                     bounce_message='TEST')
+                     bounce_message=bounce_message)
 
         self.assertEqual(len(send.sent), 1)
         fromaddr, toaddrs, message = send.sent[0]
         self.assertEqual(fromaddr, 'Bouncer <bouncer@example.com>')
         self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
-        self.assertEqual(message, 'TEST')
+        self.assertEqual(message.get_payload(), 'TEST')
+        self.assertEqual(message['X-Postoffice'], 'Bounced')
 
     def test_bounce_reason_unicode(self):
         import base64
@@ -141,6 +146,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(message['Subject'].startswith(
             'Your message to Submissions'), message['Subject'])
+        self.assertEqual(message['X-Postoffice'], 'Bounced')
         body = base64.b64decode(message.get_payload())
         self.failUnless(
             u'Not entertaining eno\xfagh.'.encode('UTF-8') in body, body
@@ -171,6 +177,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(message['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(message['Subject'].startswith(
             'Your message to Submissions'), message['Subject'])
+        self.assertEqual(message['X-Postoffice'], 'Bounced')
         body = base64.b64decode(message.get_payload())
         self.failUnless('Not entertaining enough.' in body, body)
 
@@ -218,6 +225,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
         self.assertEqual(notice['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(notice['Subject'].startswith('An error has occurred'))
+        self.assertEqual(notice['X-Postoffice'], 'Bounced')
         body = base64.b64decode(notice.get_payload())
         self.failUnless('System administrators have been informed' in body)
 
@@ -245,6 +253,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(toaddrs, [u'Chris Ross\xed <chris@example.com>'])
         self.assertEqual(notice['To'], u'Chris Ross\xed <chris@example.com>')
         self.failUnless(notice['Subject'].startswith('An error has occurred'))
+        self.assertEqual(notice['X-Postoffice'], 'Bounced')
         body = base64.b64decode(notice.get_payload())
         self.failUnless('System administrators have been informed' in body)
 
@@ -272,6 +281,7 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(toaddrs, ['Chris Rossi <chris@example.com>'])
         self.assertEqual(notice['To'], 'Chris Rossi <chris@example.com>')
         self.failUnless(notice['Subject'].startswith('An error has occurred'))
+        self.assertEqual(notice['X-Postoffice'], 'Bounced')
         body = base64.b64decode(notice.get_payload())
         self.failUnless('System administrators have been informed' in body)
         self.failUnless('Last Tuesday' in body)
