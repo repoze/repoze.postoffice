@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.5 (2010-08-03)
+----------------
 
 - Added 'X-Postoffice: Bounced' header to outgoing bounce and quarantine
   messages. The presence of this header is checked when importing messages and
