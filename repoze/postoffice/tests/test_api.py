@@ -567,6 +567,33 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(A), 0)
         self.assertEqual(len(log.infos), 2)
 
+    def test_from_and_to_identical(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        del msg1['From']
+        msg1['From'] = msg1['To'] = 'dummy@exampleA.com'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
 class Test_get_opt_int(unittest.TestCase):
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int

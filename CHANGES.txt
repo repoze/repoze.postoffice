@@ -6,6 +6,9 @@ Unreleased
   any messages which contain it are discarded. This is to prevent possible
   ricochets of bounce messages back into the system. (LP #612587)
 
+- Incoming messages with a 'From' header which matches exactly its 'To' header
+  are now discarded as probable spam. (LP #612588)
+
 0.4 (2010-07-30)
 ----------------
 

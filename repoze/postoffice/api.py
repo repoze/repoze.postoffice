@@ -168,6 +168,11 @@ class PostOffice(object):
                      _log_message(message))
             return
 
+        if user == message.get('To'):
+            log.info("Message discarded: 'From' and 'To' headers are "
+                     "identical: %s" % _log_message(message))
+            return
+
         if message.get('X-Postoffice') == 'Bounced':
             log.info("Message discarded: ricocheted bounce message: %s" %
                      _log_message(message))
