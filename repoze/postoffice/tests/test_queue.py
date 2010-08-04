@@ -324,6 +324,18 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(queue.count_quarantined_messages(), 0)
         self.assertRaises(ValueError, queue.remove_from_quarantine, msg)
 
+    def test_requeue_quarantined_messages(self):
+        msg = DummyMessage('Oops, my bad.')
+        queue = self._make_one()
+        queue.quarantine(DummyMessage('Oh nos!'), ('OMG', 'WTH', '???'))
+        queue.quarantine(msg, (None, None, None))
+        queue.quarantine(DummyMessage('Woopsy!'), ('IRCC', 'FWIW', 'ROTFLMAO'))
+        self.assertEqual(len(queue), 0)
+        self.assertEqual(len(list(queue.get_quarantined_messages())), 3)
+        queue.requeue_quarantined_messages()
+        self.assertEqual(len(queue), 3)
+        self.assertEqual(len(list(queue.get_quarantined_messages())), 0)
+
     def test_get_instantaneous_frequency(self):
         from datetime import datetime
         now = datetime(2010, 5, 13, 2, 42, 30)

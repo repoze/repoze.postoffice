@@ -229,6 +229,15 @@ class Queue(Persistent):
         del self._quarantine[id]
         del message['X-Postoffice-Id']
 
+    def requeue_quarantined_messages(self):
+        """
+        Convenience method which takes all of the messages currently in the
+        quarantine and re-adds them to the queue.
+        """
+        for msg, error in list(self.get_quarantined_messages()):
+            self.remove_from_quarantine(msg)
+            self.add(msg)
+
     def get_instantaneous_frequency(self, user, now, headers=None):
         """
         Gets the instantaneous frequency of message submission for the given
