@@ -3,6 +3,8 @@ Unreleased
 
 - Added Queue.requeue_quarantined_messages() convenience method to API.
 
+- Allow for multiple hosts in 'to_hostname' filter. (LP #614528)
+
 0.5 (2010-08-03)
 ----------------
 

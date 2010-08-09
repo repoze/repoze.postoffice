@@ -20,7 +20,10 @@ class ToHostnameFilter(object):
             addr = addr[lt+1:addr.rindex('>')]
         hostname = addr.split('@')[1]
 
-        expr = self.expr.lower()
-        if expr.startswith('.'):
-            return hostname.endswith(expr[1:])
-        return hostname == expr
+        for expr in self.expr.lower().split():
+            if expr.startswith('.') and hostname.endswith(expr[1:]):
+                return True
+            if hostname == expr:
+                return True
+
+        return False

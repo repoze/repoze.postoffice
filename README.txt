@@ -75,7 +75,7 @@ Each message queue is configured in a section with the prefix 'queue:'::
 
   [queue:Customer A]
   filters =
-      to_hostname: app.customera.com
+      to_hostname: app.customera.com app.aliasa.com
 
   [queue:Customer B]
   filters =
@@ -92,7 +92,8 @@ This filter matches the hostname of the email address in the 'To' header of the
 message.  Hostnames which beging with a period will match any hostname that
 ends with the specified name, ie '.example.com' matches 'example.com' and
 'app.example.com'.  If the hostname does not begin with a period it must
-match exactly.
+match exactly.  Multiple hostnames, delimited by whitespace, may be listed.
+If multiple hostnames are used, an incoming message need match only one.
 
 Populating Queues
 =================

@@ -42,3 +42,12 @@ class TestToHostnameFilter(unittest.TestCase):
         fut = self._make_one('example.com')
         msg = {'To': 'undisclosed recipients;;'}
         self.failIf(fut(msg))
+
+    def test_multiple_hosts(self):
+        fut = self._make_one('example1.com .example2.com example3.com')
+        msg = {'To': 'chris@foo.example2.com'}
+        self.failUnless(fut(msg))
+        msg = {'To': 'chris@foo.example1.com'}
+        self.failIf(fut(msg))
+        msg = {'To': 'chris@example1.com'}
+        self.failUnless(fut(msg))
