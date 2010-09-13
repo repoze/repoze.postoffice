@@ -5,6 +5,9 @@ Unreleased
 
 - Allow for multiple hosts in 'to_hostname' filter. (LP #614528)
 
+- Added graceful degradation for non-RFC 2047 compliant headers, in order to
+  avoid crashing when spambots send us malformed messages. (LP #637484)
+
 0.5 (2010-08-03)
 ----------------
 

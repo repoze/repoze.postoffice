@@ -60,16 +60,21 @@ def encode_header(name, value):
     if name.lower() in ('to', 'from', 'reply-to', 'cc', 'bcc'):
         addrs = []
         for addr in value.split(','):
-            # Since email addresses themselves must be ascii, we assume that
-            # if we've gotten to this point then there must be a name portion
-            # of the email address that contains non-ascii characters.
-            addr = addr.strip()
-            lt_index = addr.find('<')
-            user = addr[:lt_index].strip()
-            addr = addr[lt_index:]
-            addr = '%s %s' % (
-                str(Header(user)), addr.encode('ascii')
-            )
+            # Make sure this actually an email address in here somewhere
+            if '@' in addr:
+                # Since email addresses themselves must be ascii, we assume
+                # that if we've gotten to this point then there must be a name
+                # portion of the email address that contains non-ascii
+                # characters.
+                addr = addr.strip()
+                lt_index = addr.find('<')
+                user = addr[:lt_index].strip()
+                addr = addr[lt_index:]
+                addr = '%s %s' % (
+                    str(Header(user)), addr.encode('ascii')
+                )
+            else:
+                addr = str(Header(addr))
             addrs.append(addr)
         value = ', '.join(addrs)
 
@@ -83,11 +88,14 @@ def decode_header(value):
     if value is None:
         return None
 
-    parts = []
-    for part, encoding in stdlib_decode_header(value):
-        if encoding is not None:
-            part = part.decode(encoding)
-        else:
-            part = unicode(part)
-        parts.append(part)
-    return ' '.join(parts)
+    try:
+        parts = []
+        for part, encoding in stdlib_decode_header(value):
+            if encoding is not None:
+                part = part.decode(encoding)
+            else:
+                part = unicode(part)
+            parts.append(part)
+        return ' '.join(parts)
+    except UnicodeEncodeError:
+        return value

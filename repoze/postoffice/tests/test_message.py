@@ -24,6 +24,14 @@ class TestMessage(unittest.TestCase):
         to_header = [l for l in msg.split('\n') if l.startswith('To:')][0]
         self.assertEqual(to_header[-18:], '<test@example.com>')
 
+    def test_address_that_is_not_an_address(self):
+        # Damn spambots
+        m1 = self._make_one()
+        m1['To'] = u'\u041c\u0430\u0433\u0430\u0437\u0438\u043d \u043f\u043b'
+        self.assertEqual(
+            m1['To'], u'\u041c\u0430\u0433\u0430\u0437\u0438\u043d \u043f\u043b'
+        )
+
     def test_bare_address(self):
         m1 = self._make_one()
         m1['To'] = 'test@example.com'
@@ -68,6 +76,13 @@ class TestMessage(unittest.TestCase):
         m2 = parse(m1.as_string())
         self.assertEqual(m1['Subject'], m2['Subject'])
         self.assertEqual(m2['Subject'], proverb)
+
+    def test_unicode_header_not_encoded_with_rfc2047(self):
+        from email.message import Message
+        proverb = u"Non c'\xe9 realt\xe0, c'\xe8 solo superpollo!"
+        m1 = self._make_one()
+        Message.__setitem__(m1, 'From', proverb)
+        self.assertEqual(m1['From'], proverb)
 
 class TestMIMEMultipPart(TestMessage):
     def _target_class(self):
