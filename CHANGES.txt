@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.6 (2010-09-13)
+----------------
 
 - Added Queue.requeue_quarantined_messages() convenience method to API.
 
