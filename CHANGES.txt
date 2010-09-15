@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.7 (2010-09-15)
+----------------
 
 - Fixed another case where non-RFC 2047 compliant headers could cause an
   exception to be raised.  (LP #637484)
