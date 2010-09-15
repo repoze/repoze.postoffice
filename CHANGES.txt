@@ -1,7 +1,8 @@
 Unreleased
 ----------
 
-- ...
+- Fixed another case where non-RFC 2047 compliant headers could cause an
+  exception to be raised.  (LP #637484)
 
 0.6 (2010-09-13)
 ----------------

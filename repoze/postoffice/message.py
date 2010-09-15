@@ -97,5 +97,5 @@ def decode_header(value):
                 part = unicode(part)
             parts.append(part)
         return ' '.join(parts)
-    except UnicodeEncodeError:
+    except UnicodeError:
         return value

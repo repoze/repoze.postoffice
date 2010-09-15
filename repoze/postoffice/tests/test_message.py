@@ -84,6 +84,13 @@ class TestMessage(unittest.TestCase):
         Message.__setitem__(m1, 'From', proverb)
         self.assertEqual(m1['From'], proverb)
 
+    def test_utf8_header_not_encoded_with_rfc2047(self):
+        from email.message import Message
+        proverb = "Non c'\xc3\xa9 realt\xc3\xa0, c'\xc3\xa8 solo superpollo!"
+        m1 = self._make_one()
+        Message.__setitem__(m1, 'From', proverb)
+        self.assertEqual(m1['From'], proverb)
+
 class TestMIMEMultipPart(TestMessage):
     def _target_class(self):
         from repoze.postoffice.message import MIMEMultipart as target
