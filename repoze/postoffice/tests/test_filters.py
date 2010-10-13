@@ -51,3 +51,22 @@ class TestToHostnameFilter(unittest.TestCase):
         self.failIf(fut(msg))
         msg = {'To': 'chris@example1.com'}
         self.failUnless(fut(msg))
+
+    def test_multiple_addrs(self):
+        fut = self._make_one('example.com')
+        msg = {'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
+        self.failUnless(fut(msg))
+
+    def test_match_cc(self):
+        fut = self._make_one('example.com')
+        msg = {'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
+        self.failUnless(fut(msg))
+
+    def test_match_to_or_cc(self):
+        fut = self._make_one('example.com')
+        msg = {'To': 'Fred <fred@examplar.com>',
+               'Cc': 'Barney <barney@example.com>'}
+        self.failUnless(fut(msg))
+        msg = {'To': 'Barney <barney@example.com>',
+               'Cc': 'Fred <fred@examplar.com>'}
+        self.failUnless(fut(msg))

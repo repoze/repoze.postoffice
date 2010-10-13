@@ -8,22 +8,27 @@ class ToHostnameFilter(object):
         self.expr = expr
 
     def __call__(self, message):
-        if 'To' not in message:
-            return False
+        addrs = []
+        for header in 'To', 'Cc':
+            value = message.get(header)
+            if not value:
+                continue
+            addrs.extend(value.split(','))
 
-        addr = message['To'].lower()
-        if '@' not in addr:
-            return False
+        for addr in addrs:
+            if '@' not in addr:
+                continue
 
-        lt = addr.find('<')
-        if lt != -1:
-            addr = addr[lt+1:addr.rindex('>')]
-        hostname = addr.split('@')[1]
+            addr = addr.lower()
+            lt = addr.find('<')
+            if lt != -1:
+                addr = addr[lt+1:addr.rindex('>')]
+            hostname = addr.split('@')[1]
 
-        for expr in self.expr.lower().split():
-            if expr.startswith('.') and hostname.endswith(expr[1:]):
-                return True
-            if hostname == expr:
-                return True
+            for expr in self.expr.lower().split():
+                if expr.startswith('.') and hostname.endswith(expr[1:]):
+                    return True
+                if hostname == expr:
+                    return True
 
         return False

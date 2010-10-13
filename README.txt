@@ -87,13 +87,14 @@ ini file until a match is found or until all of the queues have been tried.
 For each queue each filter for that queue is processed. In order to match for
 a queue a message must match all filters for that queue.
 
-At the time of this writing only a single filter is implemented: `to_hostname`.
-This filter matches the hostname of the email address in the 'To' header of the
-message.  Hostnames which beging with a period will match any hostname that
-ends with the specified name, ie '.example.com' matches 'example.com' and
-'app.example.com'.  If the hostname does not begin with a period it must
-match exactly.  Multiple hostnames, delimited by whitespace, may be listed.
-If multiple hostnames are used, an incoming message need match only one.
+At the time of this writing only a single filter is implemented:
+`to_hostname`. This filter matches the hostname of the email address in the
+'To' or 'CC' headers of the message. Hostnames which beging with a period will
+match any hostname that ends with the specified name, ie '.example.com'
+matches 'example.com' and 'app.example.com'. If the hostname does not begin
+with a period it must match exactly. Multiple hostnames, delimited by
+whitespace, may be listed. If multiple hostnames are used, an incoming message
+need match only one.
 
 Populating Queues
 =================
@@ -202,7 +203,3 @@ instance::
           transaction.abort()
           queue.quarantine(message, sys.exc_info())
           transaction.commit()
-
-
-
-
