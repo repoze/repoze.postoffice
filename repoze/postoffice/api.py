@@ -173,6 +173,11 @@ class PostOffice(object):
                      "identical: %s" % _log_message(message))
             return
 
+        if not message.get('Message-Id'):
+            log.info("Message discarded: no 'Message-Id' header: %s" %
+                     _log_message(message))
+            return
+
         if message.get('X-Postoffice') == 'Bounced':
             log.info("Message discarded: ricocheted bounce message: %s" %
                      _log_message(message))
@@ -187,14 +192,18 @@ class PostOffice(object):
             with self._get_root() as queues:
                 name = configured['name']
                 queue = queues[name]
-                self._check_for_auto_response_and_loops(
-                    self, queue, message, log
-                )
 
-                queue.add(message)
-                queue.collect_frequency_data(message, self.ooo_loop_headers)
-                log.info("Message added to queue, %s: %s" %
-                         (name, _log_message(message))
+                if queue.is_duplicate(message):
+                    log.info("Message discarded: duplicate message: %s" %
+                             _log_message(message))
+                else:
+                    self._check_for_auto_response_and_loops(
+                        self, queue, message, log
+                    )
+                    queue.add(message)
+                    queue.collect_frequency_data(message, self.ooo_loop_headers)
+                    log.info("Message added to queue, %s: %s" %
+                             (name, _log_message(message))
                          )
             break
 

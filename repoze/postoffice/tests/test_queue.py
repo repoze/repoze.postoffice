@@ -31,6 +31,31 @@ class TestQueue(unittest.TestCase):
         self.assertEqual(len(queue), 0)
         self.failIf(queue)
 
+    def test_is_duplicate_false(self):
+        queue = self._make_one()
+        message = DummyMessage('one')
+        self.failIf(queue.is_duplicate(message))
+
+    def test_is_duplicate_bbb_persistence(self):
+        queue = self._make_one()
+        del queue._message_ids
+        message = DummyMessage('one')
+        self.failIf(queue.is_duplicate(message))
+
+    def test_is_duplicate_true(self):
+        queue = self._make_one()
+        message = DummyMessage('one')
+        queue.add(message)
+        self.failUnless(queue.is_duplicate(message))
+
+    def test_is_duplicate_past_cutoff(self):
+        import time
+        queue = self._make_one()
+        message = DummyMessage('one')
+        timestamp = time.time() - 30 * 60 * 60
+        queue._message_ids[message['Message-Id']] = timestamp
+        self.failIf(queue.is_duplicate(message))
+
     def test_bounce_generic_message(self):
         import base64
         from repoze.postoffice.message import Message
@@ -483,6 +508,7 @@ class DummyMessage(Message):
     def __init__(self, body=None):
         Message.__init__(self)
         self['From'] = 'Harry'
+        self['Message-Id'] = '12345'
         self.set_payload(body)
 
     def __eq__(self, other):

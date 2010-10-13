@@ -55,14 +55,33 @@ class Queue(Persistent):
         self._quarantine = IOBTree()
         self._messages = IOBTree()
         self._freq_data = OOBTree()
+        self._message_ids = OOBTree()
 
     def add(self, message):
         """
         Add a message to the queue.
         """
+        id = message['Message-Id']
+        self._message_ids[message['Message-Id']] = time.time()
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
+
+    def is_duplicate(self, message):
+        try:
+            message_ids = self._message_ids
+        except AttributeError:
+            # BBB persistence
+            self._message_ids = message_ids = OOBTree()
+            return False
+
+        # Don't grow message_ids forever--prune entries old than 24 hours
+        cutoff = time.time() - 24 * 60 * 60
+        for id, timestamp in message_ids.items():
+            if timestamp < cutoff:
+                del message_ids[id]
+
+        return message['Message-Id'] in message_ids
 
     def collect_frequency_data(self, message, headers=None):
         """

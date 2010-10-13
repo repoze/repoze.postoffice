@@ -335,6 +335,31 @@ class TestAPI(unittest.TestCase):
             'Message body discarded.'))
         self.assertEqual(len(log.infos), 3)
 
+    def test_import_message_is_duplicate(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("ha ha ha ha")
+        msg1['To'] = 'dummy@exampleA.com'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        A.duplicate = True
+        po.import_messages(log)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
     def test_import_message_auto_reply_precedence_header(self):
         log = DummyLogger()
         msg1 = DummyMessage("one")
@@ -519,6 +544,33 @@ class TestAPI(unittest.TestCase):
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
         del msg1['From']
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1,]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 0)
+        self.assertEqual(len(log.infos), 2)
+
+    def test_missing_message_id(self):
+        import datetime
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        del msg1['Message-Id']
         queues = {}
 
         po = self._make_one(StringIO(
@@ -799,6 +851,7 @@ class DummyQueue(list):
     average_freq = 0
     interval = None
     match_headers = None
+    duplicate = False
 
     def add(self, message):
         self.append(message)
@@ -824,3 +877,5 @@ class DummyQueue(list):
     def collect_frequency_data(self, message, headers):
         pass
 
+    def is_duplicate(self, message):
+        return self.duplicate
