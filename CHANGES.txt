@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.8 (2011-01-14)
+----------------
 
 - The 'to_hostname' filter now parses multiple email addresses and checks the
   'Cc' header as well as the 'To' header.  (LP #659243)
