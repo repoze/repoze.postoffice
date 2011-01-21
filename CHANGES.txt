@@ -1,7 +1,8 @@
 Unreleased
 ----------
 
-- ...
+- Added greater fault tolerance for malformed email addresses.  (Shakes fist at
+  spammers.)
 
 0.8 (2011-01-14)
 ----------------

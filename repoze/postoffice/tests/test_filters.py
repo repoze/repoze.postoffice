@@ -43,6 +43,11 @@ class TestToHostnameFilter(unittest.TestCase):
         msg = {'To': 'undisclosed recipients;;'}
         self.failIf(fut(msg))
 
+    def test_malformed_address(self):
+        fut = self._make_one('example.com')
+        msg = {'To': 'karin@example.com <>'}
+        self.failIf(fut(msg))
+
     def test_multiple_hosts(self):
         fut = self._make_one('example1.com .example2.com example3.com')
         msg = {'To': 'chris@foo.example2.com'}

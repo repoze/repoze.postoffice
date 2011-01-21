@@ -16,13 +16,12 @@ class ToHostnameFilter(object):
             addrs.extend(value.split(','))
 
         for addr in addrs:
-            if '@' not in addr:
-                continue
-
             addr = addr.lower()
             lt = addr.find('<')
             if lt != -1:
                 addr = addr[lt+1:addr.rindex('>')]
+            if '@' not in addr:
+                continue
             hostname = addr.split('@')[1]
 
             for expr in self.expr.lower().split():
