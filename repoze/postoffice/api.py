@@ -244,7 +244,9 @@ class PostOffice(object):
         user = message['From']
         now = message.get('Date')
         if now is not None:
-            now = datetime.datetime(*parsedate(now)[:6])
+            now = parsedate(now)
+        if now is not None:
+            now = datetime.datetime(*now[:6])
         else:
             now = datetime.datetime.now()
 

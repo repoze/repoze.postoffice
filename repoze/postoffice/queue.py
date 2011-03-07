@@ -93,7 +93,9 @@ class Queue(Persistent):
 
         date = message.get('Date')
         if date is not None:
-            date = datetime.datetime(*parsedate(date)[:6])
+            date = parsedate(date)
+        if date is not None:
+            date = datetime.datetime(*date[:6])
         else:
             date = datetime.datetime.now()
 
