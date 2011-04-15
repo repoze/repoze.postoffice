@@ -75,6 +75,14 @@ class PostOffice(object):
         self.max_message_size = _get_opt_bytes(
             config, MAIN_SECTION, 'max_message_size', '0')
 
+        self.reject_filters = filters = []
+        filters_setting = _get_opt(config, MAIN_SECTION, 'reject_filters', None)
+        if filters_setting is not None:
+            for filter in [f.strip() for f in
+                           filters_setting.strip().split('\n')]:
+                filters.append(self._init_filter(filter))
+
+
     def _init_queues(self, config):
         queues = []
         for section in config.sections():
@@ -190,6 +198,12 @@ class PostOffice(object):
             log.info("Message discarded: ricocheted bounce message: %s" %
                      _log_message(message))
             return
+
+        for filter in self.reject_filters:
+            if filter(message):
+                log.info("Message discarded: rejected by filter: %s" %
+                         _log_message(message))
+                return
 
         for configured in self.configured_queues:
             filters = configured['filters']
