@@ -112,13 +112,13 @@ At the time of the following filters are implemented:
         header_regexp: Subject:.+[Pp]arty.+
 
 + `header_regexp_file`: This filter is the same as `header_regexp` except that
-multiple regular expressions can be written in a file. Regular expressions are
-newline delimited in the file. The argument to this filter is the path to the
-file::
+  multiple regular expressions can be written in a file. Regular expressions are
+  newline delimited in the file. The argument to this filter is the path to the
+  file::
 
     [queue:Weddings]
     filters =
-        header_regexp: %(here)s/wedding_invitation_header_checks.txt
+        header_regexp_file: %(here)s/wedding_invitation_header_checks.txt
 
 + `body_regexp`: Like `header_regexp` except the regular expression must match
   some text in one of the message part bodies.
@@ -135,11 +135,11 @@ that can be used for a queue can be used here. The basic difference, though,
 is that for a queue, if a filter matches, the message goes into the queue.
 Here, though, if a filter matches the message is rejected.  ::
 
-[post office]
-reject_filters =
-    header_regexp_file: reject_headers.txt
-    body_regexp_file: reject_body.txt
-    to_hostname: *.partycentral.com  # We need to get them to change their MX
+    [post office]
+    reject_filters =
+        header_regexp_file: reject_headers.txt
+        body_regexp_file: reject_body.txt
+        to_hostname: *.partycentral.com  # We need to get them to change their MX
 
 Populating Queues
 =================
