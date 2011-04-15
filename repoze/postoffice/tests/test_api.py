@@ -113,6 +113,43 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(queue['filters']), 1)
         self.assertEqual(queue['filters'][0].expr, '.exampleB.com')
 
+    def test_ctor_filters(self):
+        import pkg_resources
+        import re
+        header_checks = pkg_resources.resource_filename(
+            'repoze.postoffice.tests', 'test_header_regexps.txt')
+        body_checks = pkg_resources.resource_filename(
+            'repoze.postoffice.tests', 'test_body_regexps.txt')
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            "\theader_regexp: Subject: You are nice\n"
+            "\theader_regexp_file: %(header_checks)s\n"
+            "\tbody_regexp: I like you\n"
+            "\tbody_regexp_file: %(body_checks)s\n" % {
+                'header_checks': header_checks,
+                'body_checks': body_checks}
+        ))
+
+        queues = po.configured_queues
+        self.assertEqual(len(queues), 1)
+        queue = queues.pop(0)
+        filters = queue['filters']
+        self.assertEqual(len(filters), 5)
+        self.assertEqual(filters[0].expr, 'exampleA.com')
+        def p(s):
+            return re.compile(s, re.IGNORECASE)
+        self.assertEqual(filters[1].regexps, [p('Subject: You are nice')])
+        self.assertEqual(filters[2].regexps, [p('Subject: Nice to meet you'),
+                                              p('Subject: You are nice')])
+        self.assertEqual(filters[3].regexps, [p('I like you'),])
+        self.assertEqual(filters[4].regexps, [p('Nice to meet you'),
+                                              p('You are nice')])
+
     def test_ctor_bad_filtertype(self):
         self.assertRaises(ValueError, self._make_one, StringIO(
             "[post office]\n"

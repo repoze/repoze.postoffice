@@ -14,10 +14,18 @@ import re
 import shutil
 import transaction
 
-from repoze.postoffice.filters import ToHostnameFilter
+from repoze.postoffice import filters
 from repoze.postoffice.queue import QueuesFolder
 from repoze.postoffice.queue import Queue
 from repoze.zodbconn.uri import db_from_uri
+
+filter_factories = {
+    'to_hostname': filters.ToHostnameFilter,
+    'header_regexp': filters.HeaderRegexpFilter,
+    'header_regexp_file': filters.HeaderRegexpFileFilter,
+    'body_regexp': filters.BodyRegexpFilter,
+    'body_regexp_file': filters.BodyRegexpFileFilter,
+}
 
 MAIN_SECTION = 'post office'
 _marker = object()
@@ -99,11 +107,11 @@ class PostOffice(object):
         return dict(name=name, filters=filters, section=section)
 
     def _init_filter(self, filter_):
-        name, config = filter_.split(':')
-        if name == 'to_hostname':
-            return ToHostnameFilter(config.strip())
-
-        raise ValueError("Unknown filter type: %s" % name)
+        name, config = filter_.split(':', 1)
+        factory = filter_factories.get(name)
+        if factory is None:
+            raise ValueError("Unknown filter type: %s" % name)
+        return factory(config.strip())
 
     def reconcile_queues(self, log=None):
         """
@@ -444,6 +452,7 @@ def _message_factory_factory(po, wrapped, log):
 
 _starts_with_whitespace = re.compile('^\s')
 
+
 def _read_message_headers(fp):
     headers = {}
     header = None
@@ -458,7 +467,8 @@ def _read_message_headers(fp):
         headers[header] = value.strip()
     return headers
 
-class _NullLog(object):
+
+class _NullLog(object): # pragma NO COVER
     def info(self, *args):
         pass
 
