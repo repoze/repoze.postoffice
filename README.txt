@@ -20,22 +20,25 @@ Setting up the depot
 Postfix, has been configured to deliver messages to a folder using the Maildir
 format. Configuring the MTA is outside of the scope of this document.
 
+Configuration File
+++++++++++++++++++
+
 The depot is configured via a configuration file in ini format.  The ini file
 consists of a single 'post office' section followed by one or more named
 queue sections.  The 'post office' section contains information about the ZODB
 set up as well as the location of the incoming Maildir::
 
-  [post office]
-  # Required parameters
-  zodb_uri = zconfig://%(here)s/zodb.conf#main
-  maildir = %(here)s/incoming/Maildir
+    [post office]
+    # Required parameters
+    zodb_uri = zconfig://%(here)s/zodb.conf#main
+    maildir = %(here)s/incoming/Maildir
 
-  # Optional parameters
-  zodb_path = /postoffice
-  ooo_loop_frequency = 60 # 1 Hertz
-  ooo_loop_headers = To,Subject
-  ooo_throttle_period = 300 # 5 minutes
-  max_message_size = 500m
+    # Optional parameters
+    zodb_path = /postoffice
+    ooo_loop_frequency = 60 # 1 Hertz
+    ooo_loop_headers = To,Subject
+    ooo_throttle_period = 300 # 5 minutes
+    max_message_size = 500m
 
 `zodb_uri` is interpreted using `repoze.zodbconn` and follows the format laid
 out there.  See: http://docs.repoze.org/zodbconn/narr.html
@@ -73,13 +76,16 @@ set, no limit will be imposed on incoming message size.
 
 Each message queue is configured in a section with the prefix 'queue:'::
 
-  [queue:Customer A]
-  filters =
-      to_hostname: app.customera.com app.aliasa.com
+    [queue:Customer A]
+    filters =
+        to_hostname: app.customera.com app.aliasa.com
 
-  [queue:Customer B]
-  filters =
-      to_hostname: .customerb.com
+    [queue:Customer B]
+    filters =
+        to_hostname: .customerb.com
+
+Filters
++++++++
 
 Filters are used to determine which messages land in which queues. When a new
 message enters the system each queue is tried in the order specified in the
@@ -87,14 +93,53 @@ ini file until a match is found or until all of the queues have been tried.
 For each queue each filter for that queue is processed. In order to match for
 a queue a message must match all filters for that queue.
 
-At the time of this writing only a single filter is implemented:
-`to_hostname`. This filter matches the hostname of the email address in the
-'To' or 'CC' headers of the message. Hostnames which beging with a period will
-match any hostname that ends with the specified name, ie '.example.com'
-matches 'example.com' and 'app.example.com'. If the hostname does not begin
-with a period it must match exactly. Multiple hostnames, delimited by
-whitespace, may be listed. If multiple hostnames are used, an incoming message
-need match only one.
+At the time of the following filters are implemented:
+
++ `to_hostname`: This filter matches the hostname of the email address in the
+  'To' or 'CC' headers of the message. Hostnames which beging with a period will
+  match any hostname that ends with the specified name, ie '.example.com'
+  matches 'example.com' and 'app.example.com'. If the hostname does not begin
+  with a period it must match exactly. Multiple hostnames, delimited by
+  whitespace, may be listed. If multiple hostnames are used, an incoming message
+  need match only one.
+
++ `header_regexp`: This filter allows the matching of arbitrary regular
+  expressions against the headers of a message.  Only a single regular
+  expression can be specified.  An example::
+
+    [queue:Parties]
+    filters =
+        header_regexp: Subject:.+[Pp]arty.+
+
++ `header_regexp_file`: This filter is the same as `header_regexp` except that
+multiple regular expressions can be written in a file. Regular expressions are
+newline delimited in the file. The argument to this filter is the path to the
+file::
+
+    [queue:Weddings]
+    filters =
+        header_regexp: %(here)s/wedding_invitation_header_checks.txt
+
++ `body_regexp`: Like `header_regexp` except the regular expression must match
+  some text in one of the message part bodies.
+
++ `body_regexp_file`: Like `header_regexp_file` except the regular expressions
+  must match some text in one of the message part bodies.
+
+Global Reject Filters
++++++++++++++++++++++
+
+In addition to defining filters for queues, filters can be defined globally
+for rejection of messages before they can be assigned to queues. Any filter
+that can be used for a queue can be used here. The basic difference, though,
+is that for a queue, if a filter matches, the message goes into the queue.
+Here, though, if a filter matches the message is rejected.  ::
+
+[post office]
+reject_filters =
+    header_regexp_file: reject_headers.txt
+    body_regexp_file: reject_body.txt
+    to_hostname: *.partycentral.com  # We need to get them to change their MX
 
 Populating Queues
 =================
@@ -104,18 +149,18 @@ when the `repoze.postoffice` egg is installed.  This script reads messages from
 the incoming maildir and imports them into the ZODB-based depot.  Messages are
 matched and placed in appropriate queues.  Messages which do not match any
 queues are erased.  There are no required arguments to the script--if it can
-find it's .ini file, it will work:
+find its .ini file, it will work::
 
-  $ bin/postoffice
+    $ bin/postoffice
 
 The `postoffice` script will search for an ini file named 'postoffice.ini'
 first in the current directory, then in an 'etc' folder in the current
 directory, then an 'etc' folder that is a sibling of the 'bin' folder which
 contains the `postoffice` script and then, finally, in '/etc'.  You can also
 use a non-standard location for the ini file by passing the path as an
-argument to the script:
+argument to the script::
 
-  $ bin/postoffice -C path/to/config.ini
+    $ bin/postoffice -C path/to/config.ini
 
 Use the '-h' or '--help' switch to see all of the options available.
 
