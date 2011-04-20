@@ -215,3 +215,44 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg.attach(other)
         fut = self._make_one()
         self.failIf(fut(msg))
+
+    def test_matches_multipart_w_charset_in_content_type(self):
+        """
+        Simulates mime messages created by stdlib email parser where  a part
+        can have a charset set in the Content-Type header but get_charset()
+        returns None.
+        """
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.multipart import MIMEBase
+        from email.mime.text import MIMEText
+        msg = MIMEMultipart()
+        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body.set_charset(None)
+        del body['Content-Type']
+        body['Content-Type'] = 'text/plain; charset=ISO-8859-1'
+        msg.attach(body)
+        other = MIMEBase('application', 'pdf')
+        other.set_payload('Not really a pdf.')
+        msg.attach(other)
+        fut = self._make_one()
+        self.failUnless(fut(msg))
+
+    def test_does_not_match_multipart_w_no_charset_not_utf8(self):
+        """
+        Simulates mime messages created by stdlib email parser where  a part
+        can have a charset set in the Content-Type header but get_charset()
+        returns None.
+        """
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.multipart import MIMEBase
+        from email.mime.text import MIMEText
+        body_text = u'Non \xe8 giusto costringermi ad usare il modulo email.'
+        msg = MIMEMultipart()
+        body = MIMEText(body_text.encode('ISO-8859-1'))
+        body.set_charset(None)
+        msg.attach(body)
+        other = MIMEBase('application', 'pdf')
+        other.set_payload('Not really a pdf.')
+        msg.attach(other)
+        fut = self._make_one()
+        self.failIf(fut(msg))
