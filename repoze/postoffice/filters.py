@@ -78,9 +78,20 @@ class BodyRegexpFilter(object):
             # Get body for this message part as unicode
             body = part.get_payload(decode=True)
             charset = part.get_charset()
-            if not charset:
-                charset = 'UTF-8'
-            body = body.decode('UTF-8')
+            if charset is None:
+                content_type = part.get('Content-Type')
+                if content_type is not None and 'charset=' in content_type:
+                    charset = content_type.split('charset=')[1]
+            else:
+                charset = str(charset)
+
+            try_charsets = filter(None, [charset, 'UTF-8', 'ISO-8859-1'])
+            for charset in try_charsets:
+                try:
+                    body = body.decode(charset)
+                    break
+                except UnicodeError:
+                    pass
 
             # See if we match
             for regexp in self.regexps:
