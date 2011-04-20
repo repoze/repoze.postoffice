@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.10 (2011-04-20)
+-----------------
 
 - Improved logging output now includes a timestamp.
 
