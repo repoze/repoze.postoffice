@@ -7,9 +7,7 @@ import logging
 import os
 import sys
 
-logging.basicConfig(
-    format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-
+logging.basicConfig()
 
 class ConsoleScript(object):
     """
