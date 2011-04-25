@@ -1,7 +1,8 @@
-Unreleased
-----------
+0.11 (2011-04-25)
+-----------------
 
-- ...
+- When a message is rejected by a filter, a message is logged showing which
+  filter triggered the rejection.
 
 0.10 (2011-04-20)
 -----------------
