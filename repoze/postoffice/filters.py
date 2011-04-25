@@ -61,7 +61,7 @@ class HeaderRegexpFileFilter(HeaderRegexpFilter):
         self.regexps = regexps = []
         with open(path) as f:
             for line in f:
-                expr = line.strip()
+                expr = line.rstrip('\n').rstrip('\r')
                 regexps.append((expr, re.compile(expr, re.IGNORECASE)))
 
 
@@ -111,5 +111,5 @@ class BodyRegexpFileFilter(BodyRegexpFilter):
         self.regexps = regexps = []
         with open(path) as f:
             for line in f:
-                expr = line.strip()
+                expr = line.rstrip('\n').rstrip('\r')
                 regexps.append((expr, re.compile(expr, re.IGNORECASE)))

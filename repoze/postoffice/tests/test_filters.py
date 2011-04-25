@@ -121,6 +121,7 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
         self.path = os.path.join(self.tmp, 'rules')
         with open(self.path, 'w') as out:
             print >> out, "Subject:.+Party Time"
+            print >> out, "Subject:.+pecial "
             print >> out, "From:.+ROSSI"
 
     def tearDown(self):
@@ -139,6 +140,14 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
         msg = {'From': 'chris.rossi@jackalopelane.net'}
         self.assertEqual(fut(msg),
                          "header_regexp: headers match 'From:.+ROSSI'")
+
+    def test_respect_trailing_whitespace(self):
+        fut = self._make_one()
+        msg = {'Subject': "Call a specialist."}
+        self.assertEqual(fut(msg), None)
+        msg = {'Subject': 'Hmm, hmm, yummy pecial for you.'}
+        self.assertEqual(fut(msg),
+                         "header_regexp: headers match 'Subject:.+pecial '")
 
     def test_does_not_match(self):
         fut = self._make_one()
@@ -178,6 +187,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         with open(self.path, 'w') as out:
             print >> out, "happy.+days"
             print >> out, "amnesia"
+            print >> out, " (kitties|corndogs|puppies) "
 
     def tearDown(self):
         import shutil
@@ -279,3 +289,13 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg.attach(other)
         fut = self._make_one()
         self.assertEqual(fut(msg), None)
+
+    def test_respects_leading_and_trailing_whitespace(self):
+        from email.message import Message
+        msg = Message()
+        msg.set_payload("You are such scorndogs.")
+        fut = self._make_one()
+        self.assertEqual(fut(msg), None)
+        msg.set_payload("Have puppies for lunch!")
+        self.assertEqual(fut(msg),
+                "body_regexp: body matches ' (kitties|corndogs|puppies) '")
