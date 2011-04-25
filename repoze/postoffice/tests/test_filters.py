@@ -10,73 +10,87 @@ class TestToHostnameFilter(unittest.TestCase):
     def test_absolute(self):
         fut = self._make_one('example.com')
         msg = {}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@foo.com'
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@foo.example.com'
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@example.com'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: chris@example.com matches example.com')
         msg['To'] = 'Chris <chris@example.com>'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: chris@example.com matches example.com')
 
     def test_relative(self):
         fut = self._make_one('.example.com')
         msg = {}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@foo.com'
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@foo.example.com'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                    'to_hostname: chris@foo.example.com matches .example.com')
         msg['To'] = 'chris@example.com'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                    'to_hostname: chris@example.com matches .example.com')
         msg['To'] = 'Chris <chris@example.com>'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: chris@example.com matches .example.com')
+
 
     def test_case_insensitive(self):
         fut = self._make_one('example.com')
         msg = {}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg['To'] = 'chris@Example.com'
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: chris@Example.com matches example.com')
+
 
     def test_not_an_address(self):
         fut = self._make_one('example.com')
         msg = {'To': 'undisclosed recipients;;'}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
     def test_malformed_address(self):
         fut = self._make_one('example.com')
         msg = {'To': 'karin@example.com <>'}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
     def test_multiple_hosts(self):
         fut = self._make_one('example1.com .example2.com example3.com')
         msg = {'To': 'chris@foo.example2.com'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+            'to_hostname: chris@foo.example2.com matches .example2.com')
         msg = {'To': 'chris@foo.example1.com'}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
         msg = {'To': 'chris@example1.com'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+            'to_hostname: chris@example1.com matches example1.com')
 
     def test_multiple_addrs(self):
         fut = self._make_one('example.com')
         msg = {'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: barney@example.com matches example.com')
 
     def test_match_cc(self):
         fut = self._make_one('example.com')
-        msg = {'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
-        self.failUnless(fut(msg))
+        msg = {'Cc': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
+        self.assertEqual(fut(msg),
+                         'to_hostname: barney@example.com matches example.com')
 
     def test_match_to_or_cc(self):
         fut = self._make_one('example.com')
         msg = {'To': 'Fred <fred@examplar.com>',
                'Cc': 'Barney <barney@example.com>'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: barney@example.com matches example.com')
         msg = {'To': 'Barney <barney@example.com>',
                'Cc': 'Fred <fred@examplar.com>'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'to_hostname: barney@example.com matches example.com')
 
 
 class TestHeaderRegexpFilter(unittest.TestCase):
@@ -86,14 +100,16 @@ class TestHeaderRegexpFilter(unittest.TestCase):
         return cut(*exprs)
 
     def test_matches(self):
-        fut = self._make_one('Subject:.+Party Time')
+        regexp = 'Subject:.+Party Time'
+        fut = self._make_one(regexp)
         msg = {'Subject': "It's that time!  Party time!"}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         'header_regexp: headers match %s' % repr(regexp))
 
     def test_does_not_match(self):
         fut = self._make_one('Subject:.+Party Time')
         msg = {'Subject': "It's time for a party!"}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
 
 class TestHeaderRegexpFileFilter(unittest.TestCase):
@@ -118,14 +134,16 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
     def test_matches(self):
         fut = self._make_one()
         msg = {'Subject': "It's that time!  Party time!"}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "header_regexp: headers match 'Subject:.+Party Time'")
         msg = {'From': 'chris.rossi@jackalopelane.net'}
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "header_regexp: headers match 'From:.+ROSSI'")
 
     def test_does_not_match(self):
         fut = self._make_one()
         msg = {'Subject': "It's time for a party!"}
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
 
 class TestBodyRegexpFilter(unittest.TestCase):
@@ -139,14 +157,15 @@ class TestBodyRegexpFilter(unittest.TestCase):
         msg = Message()
         msg.set_payload("I am full of happy babies.  All Days for Me!")
         fut = self._make_one('happy.+days')
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches 'happy.+days'")
 
     def test_does_not_match(self):
         from email.message import Message
         msg = Message()
         msg.set_payload("All Days for Me!  I am full of happy babies.")
         fut = self._make_one('happy.+days')
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
 
 class TestBodyRegexpFileFilter(unittest.TestCase):
@@ -173,7 +192,8 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg = Message()
         msg.set_payload("I am full of happy babies.  All Days for Me!")
         fut = self._make_one()
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches 'happy.+days'")
 
     def test_matches_multipart(self):
         from email.mime.multipart import MIMEMultipart
@@ -186,7 +206,8 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other.set_payload('Not really a pdf.')
         msg.attach(other)
         fut = self._make_one()
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches 'happy.+days'")
 
         msg = MIMEMultipart()
         body = MIMEText("I can't remember if my amnesia is getting worse.")
@@ -194,14 +215,15 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other = MIMEBase('application', 'pdf')
         other.set_payload('Not really a pdf.')
         msg.attach(other)
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches 'amnesia'")
 
     def test_does_not_match(self):
         from email.message import Message
         msg = Message()
         msg.set_payload("All Days for Me!  I am full of happy babies.")
         fut = self._make_one()
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
     def test_does_not_multipart(self):
         from email.mime.multipart import MIMEMultipart
@@ -214,7 +236,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other.set_payload('Not really a pdf.')
         msg.attach(other)
         fut = self._make_one()
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)
 
     def test_matches_multipart_w_charset_in_content_type(self):
         """
@@ -235,7 +257,8 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other.set_payload('Not really a pdf.')
         msg.attach(other)
         fut = self._make_one()
-        self.failUnless(fut(msg))
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches 'happy.+days'")
 
     def test_does_not_match_multipart_w_no_charset_not_utf8(self):
         """
@@ -255,4 +278,4 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other.set_payload('Not really a pdf.')
         msg.attach(other)
         fut = self._make_one()
-        self.failIf(fut(msg))
+        self.assertEqual(fut(msg), None)

@@ -20,21 +20,20 @@ class ToHostnameFilter(object):
             addrs.extend(value.split(','))
 
         for addr in addrs:
-            addr = addr.lower()
             lt = addr.find('<')
             if lt != -1:
                 addr = addr[lt+1:addr.rindex('>')]
             if '@' not in addr:
                 continue
-            hostname = addr.split('@')[1]
+            hostname = addr.split('@')[1].lower()
 
             for expr in self.expr.lower().split():
                 if expr.startswith('.') and hostname.endswith(expr[1:]):
-                    return True
+                    return 'to_hostname: %s matches %s' % (addr, expr)
                 if hostname == expr:
-                    return True
+                    return 'to_hostname: %s matches %s' % (addr, expr)
 
-        return False
+        return None
 
 
 class HeaderRegexpFilter(object):
@@ -42,15 +41,16 @@ class HeaderRegexpFilter(object):
     Matches a regular expression on the headers of an email message.
     """
     def __init__(self, *exprs):
-        self.regexps = [re.compile(expr, re.IGNORECASE) for expr in exprs]
+        self.regexps = [(expr, re.compile(expr, re.IGNORECASE))
+                        for expr in exprs]
 
     def __call__(self, message):
         for name in message.keys():
             header = '%s: %s' % (name, message.get(name))
-            for regexp in self.regexps:
-                if regexp.match(header) is not None:
-                    return True
-        return False
+            for regexp, compiled in self.regexps:
+                if compiled.match(header) is not None:
+                    return 'header_regexp: headers match %s' % repr(regexp)
+        return None
 
 
 class HeaderRegexpFileFilter(HeaderRegexpFilter):
@@ -58,9 +58,11 @@ class HeaderRegexpFileFilter(HeaderRegexpFilter):
     Same as HeaderRegexpFilter but loads regexps from a file.
     """
     def __init__(self, path):
+        self.regexps = regexps = []
         with open(path) as f:
-            self.regexps = [re.compile(line.strip(), re.IGNORECASE)
-                            for line in f]
+            for line in f:
+                expr = line.strip()
+                regexps.append((expr, re.compile(expr, re.IGNORECASE)))
 
 
 class BodyRegexpFilter(object):
@@ -68,7 +70,8 @@ class BodyRegexpFilter(object):
     Matches a regular expression on the body of an email message (any part).
     """
     def __init__(self, *exprs):
-        self.regexps = [re.compile(expr, re.IGNORECASE) for expr in exprs]
+        self.regexps = [(expr, re.compile(expr, re.IGNORECASE))
+                        for expr in exprs]
 
     def __call__(self, message):
         for part in message.walk():
@@ -94,17 +97,19 @@ class BodyRegexpFilter(object):
                     pass
 
             # See if we match
-            for regexp in self.regexps:
-                if regexp.search(body) is not None:
-                    return True
+            for regexp, compiled in self.regexps:
+                if compiled.search(body) is not None:
+                    return 'body_regexp: body matches %s' % repr(regexp)
 
-        return False
+        return None
 
 class BodyRegexpFileFilter(BodyRegexpFilter):
     """
     Same as BodyRegexpFilter but loads regexps from a file.
     """
     def __init__(self, path):
+        self.regexps = regexps = []
         with open(path) as f:
-            self.regexps = [re.compile(line.strip(), re.IGNORECASE)
-                            for line in f]
+            for line in f:
+                expr = line.strip()
+                regexps.append((expr, re.compile(expr, re.IGNORECASE)))

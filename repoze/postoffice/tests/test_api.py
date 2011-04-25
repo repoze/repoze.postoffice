@@ -142,7 +142,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s):
-            return re.compile(s, re.IGNORECASE)
+            return (s, re.compile(s, re.IGNORECASE))
         self.assertEqual(filters[1].regexps, [p('Subject: You are nice')])
         self.assertEqual(filters[2].regexps, [p('Subject: Nice to meet you'),
                                               p('Subject: You are nice')])
@@ -175,7 +175,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s):
-            return re.compile(s, re.IGNORECASE)
+            return (s, re.compile(s, re.IGNORECASE))
         self.assertEqual(filters[1].regexps, [p('Subject: You are nice')])
         self.assertEqual(filters[2].regexps, [p('Subject: Nice to meet you'),
                                               p('Subject: You are nice')])
