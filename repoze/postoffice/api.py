@@ -200,9 +200,10 @@ class PostOffice(object):
             return
 
         for filter in self.reject_filters:
-            if filter(message):
-                log.info("Message discarded: rejected by filter: %s" %
-                         _log_message(message))
+            reason = filter(message)
+            if reason is not None:
+                log.info("Message discarded: rejected by filter: %s: %s" %
+                         (reason, _log_message(message)))
                 return
 
         for configured in self.configured_queues:
