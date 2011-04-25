@@ -3,6 +3,11 @@ Unreleased
 
 - ...
 
+0.12 (2011-04-25)
+-----------------
+
+- Respect leading and trailing whitespace in rules files.
+
 0.11 (2011-04-25)
 -----------------
 
