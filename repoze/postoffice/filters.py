@@ -1,6 +1,9 @@
 from __future__ import with_statement
 
+import codecs
 import re
+
+from repoze.postoffice.message import decode_header
 
 
 class ToHostnameFilter(object):
@@ -46,7 +49,7 @@ class HeaderRegexpFilter(object):
 
     def __call__(self, message):
         for name in message.keys():
-            header = '%s: %s' % (name, message.get(name))
+            header = '%s: %s' % (name, decode_header(message.get(name)))
             for regexp, compiled in self.regexps:
                 if compiled.match(header) is not None:
                     return 'header_regexp: headers match %s' % repr(regexp)
@@ -59,7 +62,7 @@ class HeaderRegexpFileFilter(HeaderRegexpFilter):
     """
     def __init__(self, path):
         self.regexps = regexps = []
-        with open(path) as f:
+        with codecs.open(path, 'r', 'UTF-8') as f:
             for line in f:
                 expr = line.rstrip('\n').rstrip('\r')
                 regexps.append((expr, re.compile(expr, re.IGNORECASE)))
@@ -109,7 +112,7 @@ class BodyRegexpFileFilter(BodyRegexpFilter):
     """
     def __init__(self, path):
         self.regexps = regexps = []
-        with open(path) as f:
+        with codecs.open(path, 'r', 'UTF-8') as f:
             for line in f:
                 expr = line.rstrip('\n').rstrip('\r')
                 regexps.append((expr, re.compile(expr, re.IGNORECASE)))

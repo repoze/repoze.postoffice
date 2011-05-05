@@ -111,6 +111,14 @@ class TestHeaderRegexpFilter(unittest.TestCase):
         msg = {'Subject': "It's time for a party!"}
         self.assertEqual(fut(msg), None)
 
+    def test_matches_non_ascii(self):
+        regexp = u'Subject: .*R\xe9ponse automatique\xa0'
+        fut = self._make_one(regexp)
+        msg = {'Subject': '=?iso-8859-1?Q?R=E9ponse_automatique=A0:_'
+               '[Communications_&_PR]_Civil_soci?='}
+        self.assertEqual(fut(msg),
+                         'header_regexp: headers match %s' % repr(regexp))
+
 
 class TestHeaderRegexpFileFilter(unittest.TestCase):
 
@@ -123,6 +131,7 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
             print >> out, "Subject:.+Party Time"
             print >> out, "Subject:.+pecial "
             print >> out, "From:.+ROSSI"
+            print >> out, 'Subject: .*R\xc3\xa9ponse automatique\xc2\xa0'
 
     def tearDown(self):
         import shutil
@@ -136,10 +145,10 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
         fut = self._make_one()
         msg = {'Subject': "It's that time!  Party time!"}
         self.assertEqual(fut(msg),
-                         "header_regexp: headers match 'Subject:.+Party Time'")
+                         "header_regexp: headers match u'Subject:.+Party Time'")
         msg = {'From': 'chris.rossi@jackalopelane.net'}
         self.assertEqual(fut(msg),
-                         "header_regexp: headers match 'From:.+ROSSI'")
+                         "header_regexp: headers match u'From:.+ROSSI'")
 
     def test_respect_trailing_whitespace(self):
         fut = self._make_one()
@@ -147,12 +156,20 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
         self.assertEqual(fut(msg), None)
         msg = {'Subject': 'Hmm, hmm, yummy pecial for you.'}
         self.assertEqual(fut(msg),
-                         "header_regexp: headers match 'Subject:.+pecial '")
+                         "header_regexp: headers match u'Subject:.+pecial '")
 
     def test_does_not_match(self):
         fut = self._make_one()
         msg = {'Subject': "It's time for a party!"}
         self.assertEqual(fut(msg), None)
+
+    def test_matches_non_ascii(self):
+        fut = self._make_one()
+        msg = {'Subject': '=?iso-8859-1?Q?R=E9ponse_automatique=A0:_'
+               '[Communications_&_PR]_Civil_soci?='}
+        self.assertEqual(fut(msg),
+                         "header_regexp: headers match "
+                         "u'Subject: .*R\\xe9ponse automatique\\xa0'")
 
 
 class TestBodyRegexpFilter(unittest.TestCase):
@@ -203,7 +220,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg.set_payload("I am full of happy babies.  All Days for Me!")
         fut = self._make_one()
         self.assertEqual(fut(msg),
-                         "body_regexp: body matches 'happy.+days'")
+                         "body_regexp: body matches u'happy.+days'")
 
     def test_matches_multipart(self):
         from email.mime.multipart import MIMEMultipart
@@ -217,7 +234,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg.attach(other)
         fut = self._make_one()
         self.assertEqual(fut(msg),
-                         "body_regexp: body matches 'happy.+days'")
+                         "body_regexp: body matches u'happy.+days'")
 
         msg = MIMEMultipart()
         body = MIMEText("I can't remember if my amnesia is getting worse.")
@@ -226,7 +243,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         other.set_payload('Not really a pdf.')
         msg.attach(other)
         self.assertEqual(fut(msg),
-                         "body_regexp: body matches 'amnesia'")
+                         "body_regexp: body matches u'amnesia'")
 
     def test_does_not_match(self):
         from email.message import Message
@@ -268,7 +285,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         msg.attach(other)
         fut = self._make_one()
         self.assertEqual(fut(msg),
-                         "body_regexp: body matches 'happy.+days'")
+                         "body_regexp: body matches u'happy.+days'")
 
     def test_does_not_match_multipart_w_no_charset_not_utf8(self):
         """
@@ -298,4 +315,4 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         self.assertEqual(fut(msg), None)
         msg.set_payload("Have puppies for lunch!")
         self.assertEqual(fut(msg),
-                "body_regexp: body matches ' (kitties|corndogs|puppies) '")
+                "body_regexp: body matches u' (kitties|corndogs|puppies) '")

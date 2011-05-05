@@ -1,5 +1,6 @@
 from __future__ import with_statement
 
+import codecs
 from cStringIO import StringIO
 from ConfigParser import ConfigParser
 from contextlib import contextmanager
@@ -30,6 +31,7 @@ filter_factories = {
 MAIN_SECTION = 'post office'
 _marker = object()
 
+
 class PostOffice(object):
     """
     Provides server side API for repoze.postoffice.
@@ -46,7 +48,8 @@ class PostOffice(object):
         """
         # db_from_uri and open passed in for unittesting
         here = os.path.dirname(os.path.abspath(filename))
-        fp = _load_fp(open(filename))
+        codec = codecs.lookup('UTF-8')
+        fp = codec.streamreader(_load_fp(open(filename)))
         self._section_indices = _get_section_indices(fp)
         fp.seek(0)
         config = ConfigParser(defaults=dict(here=here))

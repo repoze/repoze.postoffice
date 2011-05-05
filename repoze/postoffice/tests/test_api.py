@@ -143,12 +143,12 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s):
             return (s, re.compile(s, re.IGNORECASE))
-        self.assertEqual(filters[1].regexps, [p('Subject: You are nice')])
-        self.assertEqual(filters[2].regexps, [p('Subject: Nice to meet you'),
-                                              p('Subject: You are nice')])
-        self.assertEqual(filters[3].regexps, [p('I like you'),])
-        self.assertEqual(filters[4].regexps, [p('Nice to meet you'),
-                                              p('You are nice')])
+        self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
+        self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
+                                              p(u'Subject: You are nice')])
+        self.assertEqual(filters[3].regexps, [p(u'I like you'),])
+        self.assertEqual(filters[4].regexps, [p(u'Nice to meet you'),
+                                              p(u'You are nice')])
 
     def test_ctor_global_reject_filters(self):
         import pkg_resources
@@ -176,12 +176,12 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s):
             return (s, re.compile(s, re.IGNORECASE))
-        self.assertEqual(filters[1].regexps, [p('Subject: You are nice')])
-        self.assertEqual(filters[2].regexps, [p('Subject: Nice to meet you'),
-                                              p('Subject: You are nice')])
-        self.assertEqual(filters[3].regexps, [p('I like you'),])
-        self.assertEqual(filters[4].regexps, [p('Nice to meet you'),
-                                              p('You are nice')])
+        self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
+        self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
+                                              p(u'Subject: You are nice')])
+        self.assertEqual(filters[3].regexps, [p(u'I like you'),])
+        self.assertEqual(filters[4].regexps, [p(u'Nice to meet you'),
+                                              p(u'You are nice')])
 
     def test_ctor_bad_filtertype(self):
         self.assertRaises(ValueError, self._make_one, StringIO(
