@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.13 (2011-05-05)
+-----------------
 
 - Fixed problem with header filters not working properly with non-ASCII
   characters in headers.  (LP #777455)
