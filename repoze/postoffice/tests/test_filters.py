@@ -278,7 +278,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         body = MIMEText('I am full of happy babies.  All Days for Me!')
         body.set_charset(None)
         del body['Content-Type']
-        body['Content-Type'] = 'text/plain; charset=ISO-8859-1'
+        body['Content-Type'] = 'text/plain; charset=ISO-8859-1; flow=groovy'
         msg.attach(body)
         other = MIMEBase('application', 'pdf')
         other.set_payload('Not really a pdf.')

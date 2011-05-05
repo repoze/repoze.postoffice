@@ -87,7 +87,11 @@ class BodyRegexpFilter(object):
             if charset is None:
                 content_type = part.get('Content-Type')
                 if content_type is not None and 'charset=' in content_type:
-                    charset = content_type.split('charset=')[1]
+                    for piece in content_type.split(';'):
+                        piece = piece.strip()
+                        if piece.startswith('charset='):
+                            charset = piece[8:]
+                            break
             else:
                 charset = str(charset)
 
