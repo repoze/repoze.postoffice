@@ -66,6 +66,8 @@ class PostOffice(object):
                              MAIN_SECTION)
 
         self.zodb_uri = _get_opt(config, MAIN_SECTION, 'zodb_uri')
+        if isinstance(self.zodb_uri, unicode):
+            self.zodb_uri = self.zodb_uri.encode('UTF-8')
         self.maildir = _get_opt(config, MAIN_SECTION, 'maildir')
         self.zodb_path = _get_opt(config, MAIN_SECTION, 'zodb_path',
                                      '/postoffice')
