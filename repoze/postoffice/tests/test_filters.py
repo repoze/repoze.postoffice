@@ -287,6 +287,29 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         self.assertEqual(fut(msg),
                          "body_regexp: body matches u'happy.+days'")
 
+    def test_matches_multipart_w_comment_in_charset(self):
+        """
+        At least one email client out there generates content type headers that
+        look like::
+
+            Content-Type: text/html; charset="utf-8" //iso-8859-2
+        """
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.multipart import MIMEBase
+        from email.mime.text import MIMEText
+        msg = MIMEMultipart()
+        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body.set_charset(None)
+        del body['Content-Type']
+        body['Content-Type'] = 'text/plain; charset="utf-8" //iso-8859-2'
+        msg.attach(body)
+        other = MIMEBase('application', 'pdf')
+        other.set_payload('Not really a pdf.')
+        msg.attach(other)
+        fut = self._make_one()
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches u'happy.+days'")
+
     def test_does_not_match_multipart_w_no_charset_not_utf8(self):
         """
         Simulates mime messages created by stdlib email parser where  a part

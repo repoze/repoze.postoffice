@@ -87,6 +87,9 @@ class BodyRegexpFilter(object):
             if charset is None:
                 content_type = part.get('Content-Type')
                 if content_type is not None and 'charset=' in content_type:
+                    double_slash = content_type.find('//')
+                    if double_slash != -1:
+                        content_type = content_type[:double_slash].strip()
                     for piece in content_type.split(';'):
                         piece = piece.strip()
                         if piece.startswith('charset='):
