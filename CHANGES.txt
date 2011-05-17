@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.14 (2011-05-17)
+-----------------
 
 - Fixed problem where the zodb_uri could be unicode, which eventually breaks
   the ZEO client for ZEO uris.  zodb_uri is now converted to a UTF-8 string.
