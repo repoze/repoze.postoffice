@@ -193,6 +193,15 @@ class TestBodyRegexpFilter(unittest.TestCase):
         fut = self._make_one('happy.+days')
         self.assertEqual(fut(msg), None)
 
+    def test_multiline_matches(self):
+        from email.message import Message
+        msg = Message()
+        # we've seen messages with From/Subject looking headers in the body
+        msg.set_payload("From: foobar@example.com\nSubject: Auto-Response")
+        fut = self._make_one('^Subject: Auto-Response')
+        self.assertEqual(fut(msg),
+                         "body_regexp: body matches '^Subject: Auto-Response'")
+
 
 class TestBodyRegexpFileFilter(unittest.TestCase):
 
