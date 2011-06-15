@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.15 (2011-06-15)
+-----------------
 
 - Body checks are now multiline regexp checks. (LP #787573)
 
