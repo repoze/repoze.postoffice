@@ -274,7 +274,12 @@ class PostOffice(object):
         if now is not None:
             now = parsedate(now)
         if now is not None:
-            now = datetime.datetime(*now[:6])
+            # Certain spambots generate date headers that don't make any
+            # sense, eg 32 June, or something crazy like that.
+            try:
+                now = datetime.datetime(*now[:6])
+            except ValueError:
+                now = datetime.datetime.now()
         else:
             now = datetime.datetime.now()
 

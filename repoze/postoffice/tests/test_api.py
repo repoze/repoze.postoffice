@@ -432,6 +432,35 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(A), 0)
         self.assertEqual(len(log.infos), 2)
 
+    def test_import_message_malformed_date(self):
+        log = DummyLogger()
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['Date'] = 'Mon, 32 Jun 2011 14:44:21 -0000'
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "max_message_size = 5mb\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.reconcile_queues()
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 1)
+        self.assertEqual(A.pop_next(), 'one')
+        self.assertEqual(len(log.infos), 2)
+
     def test_import_message_auto_reply_precedence_header(self):
         log = DummyLogger()
         msg1 = DummyMessage("one")
