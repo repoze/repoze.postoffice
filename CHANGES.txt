@@ -1,6 +1,9 @@
 Unreleased
 ----------
 
+- Added a header, 'X-Postoffice-Date', to queued messages.  It records
+  the time each message was received (as seconds since the epoch.)  It
+  is set to the modified time of the maildir message file.  
 
 0.16 (2011-06-30)
 -----------------

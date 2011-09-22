@@ -204,6 +204,10 @@ class PostOffice(object):
                      _log_message(message))
             return
 
+        # Record the message delivery date, in seconds since the epoch,
+        # as a header.
+        message['X-Postoffice-Date'] = '%d' % message.get_date()
+
         for filter in self.reject_filters:
             reason = filter(message)
             if reason is not None:

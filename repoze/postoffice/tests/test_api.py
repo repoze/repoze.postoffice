@@ -343,7 +343,9 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(self.messages), 0)
         A = queues['A']
         self.assertEqual(len(A), 1)
-        self.assertEqual(A.pop_next(), 'one')
+        m = A.pop_next()
+        self.assertEqual(m, 'one')
+        self.assertTrue(float(m['X-Postoffice-Date']))
         B = queues['B']
         self.assertEqual(len(B), 2)
         self.assertEqual(B.pop_next(), 'three')
