@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.17 (2011-09-26)
+-----------------
 
 - Added a header, 'X-Postoffice-Date', to queued messages.  It records
   the time each message was received (as seconds since the epoch.)  It
