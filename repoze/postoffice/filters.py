@@ -103,7 +103,7 @@ class BodyRegexpFilter(object):
                 try:
                     body = body.decode(charset)
                     break
-                except UnicodeError:
+                except (LookupError, UnicodeError):
                     pass
 
             # See if we match

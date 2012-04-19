@@ -1,7 +1,8 @@
-Unreleased
-----------
+0.18 (2012-04-19)
+-----------------
 
-- ...
+- Added graceful degeneration when provided with uknown character encoding in 
+  a MIME text part.
 
 0.17 (2011-09-26)
 -----------------
