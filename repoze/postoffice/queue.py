@@ -16,8 +16,12 @@ from repoze.zodbconn.uri import db_from_uri
 import datetime
 import time
 
-def open_queue(zodb_uri, queue_name, path='postoffice'):
-    db = db_from_uri(zodb_uri)
+
+def open_queue(db_or_uri, queue_name, path='postoffice'):
+    if isinstance(db_or_uri, basestring):
+        db = db_from_uri(db_or_uri)
+    else:
+        db = db_or_uri
     conn = db.open()
     queues = conn.root()
     for name in path.strip('/').split('/'):

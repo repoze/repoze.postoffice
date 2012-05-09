@@ -478,14 +478,20 @@ class Test_open_queue(unittest.TestCase):
         self.db = DummyDB({}, queues)
         module.db_from_uri = self.db
 
-    def _call_fut(self, name):
+    def _call_fut(self, name, db='dummy_uri'):
         from repoze.postoffice.queue import open_queue
-        return open_queue('dummy_uri', name)
+        return open_queue(db, name)
 
     def test_it(self):
         q = 'one'
         self._monkey_patch(dict(one=q))
         self.assertEqual(self._call_fut('one')[0], q)
+        self.failUnless(self.db.closed)
+
+    def test_it_db_instead_of_uri(self):
+        q = 'one'
+        self._monkey_patch(dict(one=q))
+        self.assertEqual(self._call_fut('one', db=self.db)[0], q)
         self.failUnless(self.db.closed)
 
     def test_closer(self):
