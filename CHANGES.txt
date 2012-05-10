@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.19 (2012-05-10)
+-----------------
 
 - Allow calling application to provide an already open database to open_queue.
   (LP #985546)
