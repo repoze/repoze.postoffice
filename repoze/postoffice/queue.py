@@ -20,13 +20,15 @@ import time
 def open_queue(db_or_uri, queue_name, path='postoffice'):
     if isinstance(db_or_uri, basestring):
         db = db_from_uri(db_or_uri)
+        closer_db = db
     else:
         db = db_or_uri
+        closer_db = None
     conn = db.open()
     queues = conn.root()
     for name in path.strip('/').split('/'):
         queues = queues[name]
-    closer = _Closer(db, conn)
+    closer = _Closer(closer_db, conn)
     return queues[queue_name], closer
 
 class _Closer(object):
@@ -42,8 +44,9 @@ class _Closer(object):
         if not self.closed:
             self.conn.close()
             del self.conn
-            self.db.close()
-            del self.db
+            if self.db:
+                self.db.close()
+                del self.db
             self.closed = True
 
 class QueuesFolder(OOBTree):

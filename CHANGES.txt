@@ -1,3 +1,8 @@
+0.20 (2012-05-14)
+-----------------
+
+- Only close databases we create ourselves in open_queue.
+
 0.19 (2012-05-10)
 -----------------
 
