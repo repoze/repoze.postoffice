@@ -44,7 +44,7 @@ class HeaderRegexpFilter(object):
     Matches a regular expression on the headers of an email message.
     """
     def __init__(self, *exprs):
-        self.regexps = [(expr, re.compile(expr, re.IGNORECASE))
+        self.regexps = [(expr, re.compile(expr))
                         for expr in exprs]
 
     def __call__(self, message):
@@ -65,7 +65,7 @@ class HeaderRegexpFileFilter(HeaderRegexpFilter):
         with codecs.open(path, 'r', 'UTF-8') as f:
             for line in f:
                 expr = line.rstrip('\n').rstrip('\r')
-                regexps.append((expr, re.compile(expr, re.IGNORECASE)))
+                regexps.append((expr, re.compile(expr)))
 
 
 class BodyRegexpFilter(object):
@@ -73,7 +73,7 @@ class BodyRegexpFilter(object):
     Matches a regular expression on the body of an email message (any part).
     """
     def __init__(self, *exprs):
-        self.regexps = [(expr, re.compile(expr, re.IGNORECASE | re.MULTILINE))
+        self.regexps = [(expr, re.compile(expr, re.MULTILINE))
                         for expr in exprs]
 
     def __call__(self, message):
@@ -122,5 +122,4 @@ class BodyRegexpFileFilter(BodyRegexpFilter):
         with codecs.open(path, 'r', 'UTF-8') as f:
             for line in f:
                 expr = line.rstrip('\n').rstrip('\r')
-                regexps.append((expr, re.compile(expr,
-                                                 re.IGNORECASE | re.MULTILINE)))
+                regexps.append((expr, re.compile(expr, re.MULTILINE)))

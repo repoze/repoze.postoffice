@@ -102,7 +102,7 @@ class TestHeaderRegexpFilter(unittest.TestCase):
     def test_matches(self):
         regexp = 'Subject:.+Party Time'
         fut = self._make_one(regexp)
-        msg = {'Subject': "It's that time!  Party time!"}
+        msg = {'Subject': "It's that time!  Party Time!"}
         self.assertEqual(fut(msg),
                          'header_regexp: headers match %s' % repr(regexp))
 
@@ -143,10 +143,10 @@ class TestHeaderRegexpFileFilter(unittest.TestCase):
 
     def test_matches(self):
         fut = self._make_one()
-        msg = {'Subject': "It's that time!  Party time!"}
+        msg = {'Subject': "It's that time!  Party Time!"}
         self.assertEqual(fut(msg),
                          "header_regexp: headers match u'Subject:.+Party Time'")
-        msg = {'From': 'chris.rossi@jackalopelane.net'}
+        msg = {'From': 'chris.ROSSI@jackalopelane.net'}
         self.assertEqual(fut(msg),
                          "header_regexp: headers match u'From:.+ROSSI'")
 
@@ -181,7 +181,7 @@ class TestBodyRegexpFilter(unittest.TestCase):
     def test_matches(self):
         from email.message import Message
         msg = Message()
-        msg.set_payload("I am full of happy babies.  All Days for Me!")
+        msg.set_payload("I am full of happy babies.  All days for Me!")
         fut = self._make_one('happy.+days')
         self.assertEqual(fut(msg),
                          "body_regexp: body matches 'happy.+days'")
@@ -226,7 +226,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
     def test_matches(self):
         from email.message import Message
         msg = Message()
-        msg.set_payload("I am full of happy babies.  All Days for Me!")
+        msg.set_payload("I am full of happy babies.  All days for Me!")
         fut = self._make_one()
         self.assertEqual(fut(msg),
                          "body_regexp: body matches u'happy.+days'")
@@ -236,7 +236,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         from email.mime.multipart import MIMEBase
         from email.mime.text import MIMEText
         msg = MIMEMultipart()
-        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body = MIMEText('I am full of happy babies.  All days for Me!')
         msg.attach(body)
         other = MIMEBase('application', 'pdf')
         other.set_payload('Not really a pdf.')
@@ -284,7 +284,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         from email.mime.multipart import MIMEBase
         from email.mime.text import MIMEText
         msg = MIMEMultipart()
-        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body = MIMEText('I am full of happy babies.  All days for Me!')
         body.set_charset(None)
         del body['Content-Type']
         body['Content-Type'] = 'text/plain; charset=ISO-8859-1; flow=groovy'
@@ -306,7 +306,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         from email.mime.multipart import MIMEBase
         from email.mime.text import MIMEText
         msg = MIMEMultipart()
-        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body = MIMEText('I am full of happy babies.  All days for Me!')
         body.set_charset(None)
         del body['Content-Type']
         body['Content-Type'] = 'text/plain; charset=bogus; flow=groovy'
@@ -329,7 +329,7 @@ class TestBodyRegexpFileFilter(unittest.TestCase):
         from email.mime.multipart import MIMEBase
         from email.mime.text import MIMEText
         msg = MIMEMultipart()
-        body = MIMEText('I am full of happy babies.  All Days for Me!')
+        body = MIMEText('I am full of happy babies.  All days for Me!')
         body.set_charset(None)
         del body['Content-Type']
         body['Content-Type'] = 'text/plain; charset="utf-8" //iso-8859-2'

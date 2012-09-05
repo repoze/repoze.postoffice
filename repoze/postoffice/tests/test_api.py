@@ -142,7 +142,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s, additional_flags=0):
-            return (s, re.compile(s, re.IGNORECASE | additional_flags))
+            return (s, re.compile(s, additional_flags))
         self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
         self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
                                               p(u'Subject: You are nice')])
@@ -176,7 +176,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
         def p(s, additional_flags=0):
-            return (s, re.compile(s, re.IGNORECASE | additional_flags))
+            return (s, re.compile(s, additional_flags))
         self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
         self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
                                               p(u'Subject: You are nice')])
@@ -751,7 +751,6 @@ class TestAPI(unittest.TestCase):
 
 
     def test_rejected_by_filter(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'daffy@exampleA.com'
@@ -762,7 +761,7 @@ class TestAPI(unittest.TestCase):
             "zodb_uri = filestorage:test.db\n"
             "maildir = test/Maildir\n"
             "reject_filters = \n"
-            "\theader_regexp: From:.+woody\n"
+            "\theader_regexp: From:.+Woody\n"
             "[queue:A]\n"
             "filters =\n"
             "\tto_hostname:exampleA.com\n"
