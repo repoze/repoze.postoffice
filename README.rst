@@ -1,6 +1,5 @@
-=================
-repoze.postoffice
-=================
+``repoze.postoffice`` README
+============================
 
 `repoze.postoffice` provides a centralized depot for collecting incoming email
 for consumption by multiple applications.  Incoming mail is sorted into queues
@@ -14,7 +13,7 @@ This makes consuming the message queue in the context of a transaction,
 relatively simple.
 
 Setting up the depot
-====================
+--------------------
 
 `repoze.postoffice` assumes that a message transport agent (MTA), such as
 Postfix, has been configured to deliver messages to a folder using the Maildir
@@ -142,7 +141,7 @@ Here, though, if a filter matches the message is rejected.  ::
         to_hostname: *.partycentral.com  # We need to get them to change their MX
 
 Populating Queues
-=================
+-----------------
 
 Queues are populated using the `postoffice` console script that is provided
 when the `repoze.postoffice` egg is installed.  This script reads messages from
@@ -165,7 +164,7 @@ argument to the script::
 Use the '-h' or '--help' switch to see all of the options available.
 
 Out of Office Loop Detection
-============================
+----------------------------
 
 `repoze.postoffice` does attempt to address out of office loops. An out of
 office loop can occur when `repoze.postoffice` is used to populate content in
@@ -207,7 +206,7 @@ appropriate action.  This allows the client to choose and take appropriate
 action, such as bouncing with a particular bounce message, etc.
 
 Message Size Limit
-==================
+------------------
 
 If 'max_message_size' is specified in the configuration, messages which exceed
 this size will have their payloads (body and any attachments) discarded and
@@ -220,7 +219,7 @@ the 'X-Postoffice-Rejected' header and take appropriate action, possibly
 including bouncing the message with an appropriate bounce message.
 
 Consuming Queues
-================
+----------------
 
 Client applications consume message queues by establishing a connection to the
 ZODB which houses the depot and interacting with queue and message objects.
