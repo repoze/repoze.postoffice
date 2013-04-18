@@ -21,6 +21,9 @@ class TestToHostnameFilter(unittest.TestCase):
         msg['To'] = 'Chris <chris@example.com>'
         self.assertEqual(fut(msg),
                          'to_hostname: chris@example.com matches example.com')
+        msg['To'] = 'Chris <chris@example.com'
+        self.assertEqual(fut(msg),
+                         'to_hostname: chris@example.com matches example.com')
 
     def test_relative(self):
         fut = self._make_one('.example.com')
