@@ -25,7 +25,10 @@ class ToHostnameFilter(object):
         for addr in addrs:
             lt = addr.find('<')
             if lt != -1:
-                addr = addr[lt+1:addr.rindex('>')]
+                gt = addr.rfind('>')
+                if gt == -1:
+                    gt = None
+                addr = addr[lt+1:gt]
             if '@' not in addr:
                 continue
             hostname = addr.split('@')[1].lower()
