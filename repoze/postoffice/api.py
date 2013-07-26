@@ -396,16 +396,21 @@ def _filters_match(filters, message):
             return False
     return True
 
+def _ascii_dammit(x):
+    if isinstance(x, str):
+        return x.decode('ascii', 'ignore').encode('ascii')
+    return x
+
 def _log_message(message):
     info = ['Message']
     if 'From' in message:
-        info.append('From: %s' % message['From'])
+        info.append('From: %s' % _ascii_dammit(message['From']))
     if 'To' in message:
-        info.append('To: %s' % message['To'])
+        info.append('To: %s' % _ascii_dammit(message['To']))
     if 'Subject' in message:
-        info.append('Subject: %s' % message['Subject'])
+        info.append('Subject: %s' % _ascii_dammit(message['Subject']))
     if 'Message-Id' in message:
-        info.append('Message-Id: %s' % message['Message-Id'])
+        info.append('Message-Id: %s' % _ascii_dammit(message['Message-Id']))
     return ' '.join(info)
 
 class _RootContextManagerFactory(object):

@@ -380,6 +380,40 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(A.pop_next(), 'one')
         self.assertEqual(len(log.infos), 2)
 
+    def test_import_one_message_w_unicode_data(self):
+        from mailbox import MaildirMessage
+        import os
+        log = DummyLogger()
+        fqn = os.path.join(os.path.dirname(__file__), 'borked_encoding.email')
+        with open(fqn) as f:
+            msg1 = MaildirMessage(f)
+        msg1.replace_header('To', 'dummy@exampleA.com')
+
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "max_message_size = 5mb\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1]
+            )
+        po.MaildirMessage = MaildirMessage
+        po.reconcile_queues()
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        A = queues['A']
+        self.assertEqual(len(A), 1)
+        queued = A.pop_next()
+        self.assertEqual(queued.get('Message-ID'), msg1.get('Message-ID'))
+        self.assertEqual(len(log.infos), 2)
+
     def test_import_message_too_big(self):
         log = DummyLogger()
         msg1 = DummyMessage("ha ha ha ha")

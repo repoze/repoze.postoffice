@@ -4,6 +4,10 @@
 Next release
 ------------
 
+- Avoid erroring while logging messages with encoded header values
+  E.g., some clients don't escape non-ASCII in ``To:`` / ``From:`` /
+  ``Subject:`` headers.  See LP #1202770.
+
 - Handle broken addresses in ToHostName filter more gracefully.
 
 - Converted documentation to Sphinx.

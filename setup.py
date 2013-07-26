@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-__version__ = '0.21'
+__version__ = '0.22dev'
 
 import os
 from setuptools import setup, find_packages
