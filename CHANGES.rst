@@ -1,8 +1,8 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
-Next release
-------------
+0.22 (2013-07-26)
+-----------------
 
 - Avoid erroring while logging messages with encoded header values
   E.g., some clients don't escape non-ASCII in ``To:`` / ``From:`` /
