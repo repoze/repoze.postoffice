@@ -1,6 +1,15 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
+Next release
+------------
+
+- Handle broken addresses in ToHostName filter more gracefully.
+
+- Converted documentation to Sphinx.
+
+- Moved repository to Github.
+
 0.21 (2012-09-05)
 -----------------
 
