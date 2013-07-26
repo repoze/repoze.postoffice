@@ -96,12 +96,13 @@ Next release
   spammers.)
 
 - Added four new filter types based on regular expression matching:
-  `header_regexp`, `header_regexp_file`, `body_regexp`, `body_regexp_file`.
-  See README.txt for information on how to use these new filters.
+  ``header_regexp``, ``header_regexp_file``, ``body_regexp``,
+  ``body_regexp_file``.  See README.txt for information on how to use these
+  new filters.
 
-- Added a new option to the global configuration: `reject_filters`. This allows
-  you to set up filters at a global level for rejecting certain messages.  See
-  README.txt for more information.
+- Added a new option to the global configuration: ``reject_filters``.
+  This allows you to set up filters at a global level for rejecting certain
+  messages.  See README.txt for more information.
 
 0.8 (2011-01-14)
 ----------------
