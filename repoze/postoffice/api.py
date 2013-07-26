@@ -6,7 +6,6 @@ from ConfigParser import ConfigParser
 from contextlib import contextmanager
 import datetime
 from email.utils import parsedate
-import logging
 from mailbox import Maildir
 from mailbox import MaildirMessage
 from mailbox import NoSuchMailboxError
