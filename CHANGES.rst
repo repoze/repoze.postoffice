@@ -1,8 +1,8 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
-Unreleased
-----------
+0.23 (2013-07-31)
+-----------------
 
 - Enable configuration of the headers considred by the ``to_hostname`` filter.
 
