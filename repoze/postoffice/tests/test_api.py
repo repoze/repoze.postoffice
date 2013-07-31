@@ -4,6 +4,7 @@ from cStringIO import StringIO
 import unittest
 
 class TestAPI(unittest.TestCase):
+
     def setUp(self):
         from repoze.postoffice import api
         self.tx = api.transaction = DummyTransaction()
@@ -648,7 +649,6 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(A.interval, datetime.timedelta(minutes=16.0))
 
     def test_throttle_passes_headers(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
@@ -676,7 +676,6 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(A.match_headers, {'A': 'foo', 'B': 'bar'})
 
     def test_missing_from(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
@@ -703,7 +702,6 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(log.infos), 2)
 
     def test_missing_message_id(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
@@ -730,7 +728,6 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(log.infos), 2)
 
     def test_incoming_bounce_message(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         msg1['To'] = 'dummy@exampleA.com'
@@ -757,7 +754,6 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(log.infos), 2)
 
     def test_from_and_to_identical(self):
-        import datetime
         log = DummyLogger()
         msg1 = DummyMessage("one")
         del msg1['From']
@@ -811,7 +807,30 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(len(A), 0)
         self.assertEqual(len(log.infos), 2)
 
+
+_marker = object()
+
+class Test_get_opt(unittest.TestCase):
+
+    def _call_fut(self, config, section='section', name='name',
+                  default=_marker):
+        from repoze.postoffice.api import _get_opt
+        if default is _marker:
+            return _get_opt(config, section, name)
+        return _get_opt(config, section, name, default)
+
+    def test_miss_wo_default(self):
+        self.assertRaises(ValueError, self._call_fut, DummyConfig(None))
+
+    def test_miss_w_default(self):
+        self.assertEqual(
+            self._call_fut(DummyConfig(None), default='foo'), 'foo')
+
+    def test_hit(self):
+        self.assertEqual(self._call_fut(DummyConfig('foo')), 'foo')
+
 class Test_get_opt_int(unittest.TestCase):
+
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_int
         return _get_opt_int(dummy_config, None, None, None)
@@ -823,6 +842,7 @@ class Test_get_opt_int(unittest.TestCase):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('foo'))
 
 class Test_get_opt_float(unittest.TestCase):
+
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_float as fut
         return fut(dummy_config, None, None, None)
@@ -834,6 +854,7 @@ class Test_get_opt_float(unittest.TestCase):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('foo'))
 
 class Test_get_opt_bytes(unittest.TestCase):
+
     def _call_fut(self, dummy_config):
         from repoze.postoffice.api import _get_opt_bytes
         return _get_opt_bytes(dummy_config, None, None, None)
@@ -857,57 +878,406 @@ class Test_get_opt_bytes(unittest.TestCase):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('64foos'))
         self.assertRaises(ValueError, self._call_fut, DummyConfig('sixty'))
 
-class Test_send_mail(unittest.TestCase):
-
-    def test_string_message(self):
-        from repoze.postoffice.api import _send_mail as fut
-        smtp = DummySMTPLib()
-        fut('me', ['you', 'them'], 'Hello', smtplib=smtp)
-        self.assertEqual(smtp.sent, [('me', ['you', 'them'], 'Hello'),])
-
-    def test_message_object(self):
-        from repoze.postoffice.api import _send_mail as fut
-        smtp = DummySMTPLib()
-        message = DummyMessage('Hello')
-        fut('me', ['you', 'them'], message, smtplib=smtp)
-        self.assertEqual(smtp.sent, [('me', ['you', 'them'],
-                                      message.as_string()),])
-
 class Test_load_fp(unittest.TestCase):
+
+    def _call_fut(self, buffer):
+        from repoze.postoffice.api import _load_fp
+        return _load_fp(buffer)
 
     def test_w_stringio(self):
         from io import StringIO
-        from repoze.postoffice.api import _load_fp as fut
-        buf = fut(StringIO('TEST'))
+        buf = self._call_fut(StringIO('TEST'))
         self.assertEqual(buf.getvalue(), 'TEST')
 
     def test_w_bytesio(self):
         from io import BytesIO
-        from repoze.postoffice.api import _load_fp as fut
-        buf = fut(BytesIO(b'TEST'))
+        buf = self._call_fut(BytesIO(b'TEST'))
         self.assertEqual(buf.getvalue(), b'TEST')
 
     def test_w_file(self):
         from tempfile import TemporaryFile
-        from repoze.postoffice.api import _load_fp as fut
         with TemporaryFile() as f:
             f.write(b'TEST')
             f.flush()
             f.seek(0)
-            buf = fut(f)
+            buf = self._call_fut(f)
         self.assertEqual(buf.getvalue(), b'TEST')
 
     def test_w_filelike_object(self):
-        from repoze.postoffice.api import _load_fp as fut
         class FileLike(object):
             def __init__(self):
                 self.chunks = ['TEST']
             def read(self, length):
-                return self.chunks.pop(0, '')
-        buf = fut(FileLike())
+                if not self.chunks:
+                    return ''
+                return self.chunks.pop()
+        buf = self._call_fut(FileLike())
         self.assertEqual(buf.getvalue(), 'TEST')
 
+class Test_get_section_indexes(unittest.TestCase):
+
+    def _call_fut(self, lines):
+        from repoze.postoffice.api import _get_section_indices
+        return _get_section_indices(lines)
+
+    def test_empty(self):
+        LINES = []
+        self.assertEqual(self._call_fut(LINES), {})
+
+    def test_wo_sections(self):
+        LINES = ['param = value',
+                 'another_param = value2',
+                ]
+        self.assertEqual(self._call_fut(LINES), {})
+
+    def test_w_borked_section(self):
+        LINES = ['[borked',
+                 'param = value',
+                 'another_param = value2',
+                ]
+        self.assertEqual(self._call_fut(LINES), {})
+
+    def test_w_sections(self):
+        LINES = ['[first]',
+                 'param = value',
+                 'another_param = value2',
+                 '[second]',
+                 'yet_another = value3',
+                ]
+        self.assertEqual(self._call_fut(LINES), {'first': 0, 'second': 1})
+
+class Test_filters_match(unittest.TestCase):
+
+    def _call_fut(self, filters, message):
+        from repoze.postoffice.api import _filters_match
+        return _filters_match(filters, message)
+
+    def test_empty(self):
+        FILTERS = []
+        MESSAGE = object()
+        self.assertTrue(self._call_fut(FILTERS, MESSAGE))
+
+    def test_miss(self):
+        _called = []
+        def _dont_pass(message):
+            _called.append(message)
+            return False
+        FILTERS = [_dont_pass,
+                  ]
+        MESSAGE = object()
+        self.assertFalse(self._call_fut(FILTERS, MESSAGE))
+        self.assertEqual(_called, [MESSAGE])
+
+    def test_pass(self):
+        _called = []
+        def _pass(message):
+            _called.append(message)
+            return True
+        FILTERS = [_pass,
+                  ]
+        MESSAGE = object()
+        self.assertTrue(self._call_fut(FILTERS, MESSAGE))
+        self.assertEqual(_called, [MESSAGE])
+
+    def test_pass_after_miss(self):
+        _called = []
+        def _pass(message): #pragma NO COVER
+            _called.append(message)
+            return True
+        def _dont_pass(message):
+            _called.append(message)
+            return False
+        FILTERS = [_dont_pass, _pass]
+        MESSAGE = object()
+        self.assertFalse(self._call_fut(FILTERS, MESSAGE))
+        self.assertEqual(_called, [MESSAGE]) # second check skipped
+
+    def test_miss_after_pass(self):
+        _called = []
+        def _pass(message):
+            _called.append(message)
+            return True
+        def _dont_pass(message):
+            _called.append(message)
+            return False
+        FILTERS = [_pass, _dont_pass]
+        MESSAGE = object()
+        self.assertFalse(self._call_fut(FILTERS, MESSAGE))
+        self.assertEqual(_called, [MESSAGE, MESSAGE])
+
+class Test_ascii_dammit(unittest.TestCase):
+
+    def _call_fut(self, value):
+        from repoze.postoffice.api import _ascii_dammit
+        return _ascii_dammit(value)
+
+    def test_w_object(self):
+        target = object()
+        self.assertTrue(self._call_fut(target) is target)
+
+    def test_w_text(self):
+        TARGET = b'TARGET: "\xe1"'
+        target = TARGET.decode('latin1')
+        self.assertEqual(self._call_fut(target), b'TARGET: "?"')
+
+    def test_w_bytes(self):
+        TARGET = b'TARGET: "\xe1"'
+        self.assertEqual(self._call_fut(TARGET), b'TARGET: "?"')
+
+class Test_log_message(unittest.TestCase):
+
+    def _call_fut(self, message):
+        from repoze.postoffice.api import _log_message
+        return _log_message(message)
+
+    def test_empty(self):
+        self.assertEqual(self._call_fut({}),
+                         'Message')
+
+    def test_w_from(self):
+        self.assertEqual(self._call_fut({'From': 'FROM'}),
+                         'Message From: FROM')
+
+    def test_w_from_non_ascii(self):
+        self.assertEqual(self._call_fut({'From': 'FROM \xe1'}),
+                         'Message From: FROM ?')
+
+    def test_w_to(self):
+        self.assertEqual(self._call_fut({'To': 'TO'}),
+                         'Message To: TO')
+
+    def test_w_to_non_ascii(self):
+        self.assertEqual(self._call_fut({'To': 'TO \xe1'}),
+                         'Message To: TO ?')
+
+    def test_w_subject(self):
+        self.assertEqual(self._call_fut({'Subject': 'SUBJECT'}),
+                         'Message Subject: SUBJECT')
+
+    def test_w_subject_non_ascii(self):
+        self.assertEqual(self._call_fut({'Subject': 'SUBJECT \xe1'}),
+                         'Message Subject: SUBJECT ?')
+
+    def test_w_message_id(self):
+        self.assertEqual(self._call_fut({'Message-Id': 'MESSAGE_ID'}),
+                         'Message Message-Id: MESSAGE_ID')
+
+    def test_w_message_id_non_ascii(self):
+        self.assertEqual(self._call_fut({'Message-Id': 'MESSAGE_ID\xe1'}),
+                         'Message Message-Id: MESSAGE_ID?')
+
+    def test_w_all(self):
+        self.assertEqual(self._call_fut({'From': 'FROM',
+                                         'To': 'TO',
+                                         'Subject': 'SUBJECT',
+                                         'Message-Id': 'MESSAGE_ID',
+                                        }),
+                         'Message From: FROM To: TO'
+                            ' Subject: SUBJECT Message-Id: MESSAGE_ID')
+
+class Test_RootContextManagerFactory(unittest.TestCase):
+
+    def _getTargetClass(self):
+        from repoze.postoffice.api import _RootContextManagerFactory
+        return _RootContextManagerFactory
+
+    def _makeOne(self, uri, db_from_uri, path):
+        return self._getTargetClass()(uri, db_from_uri, path)
+
+    def _makeDB(self, **kw):
+        class _Conn(object):
+            def __init__(self, **kw):
+                self._root = kw.copy()
+            def root(self):
+                return self._root
+            def close(self):
+                self._closed = True
+        class _DB(object):
+            def __init__(self, conn):
+                self._conn = conn
+            def open(self):
+                return self._conn
+            def close(self):
+                self._closed = True
+        return _DB(_Conn(**kw))
+
+    def test_as_context_manager_w_existing_target(self):
+        URI = 'file:///tmp/Data.fs'
+        dbs = {}
+        db = dbs[URI] = self._makeDB()
+        root = db._conn._root
+        target = root['test'] = {}
+        class _TM(object):
+            def commit(self):
+                self._committed = True
+        tm = _TM()
+        def _db_from_uri(uri):
+            return dbs[uri]
+        cm = self._makeOne(URI, _db_from_uri, '/test')
+        with cm(tm) as found:
+            self.assertTrue(found is target)
+        self.assertTrue(tm._committed)
+        self.assertTrue(db._conn._closed)
+        self.assertTrue(db._closed)
+
+    def test_as_context_manager_wo_target_container_raises(self):
+        URI = 'file:///tmp/Data.fs'
+        dbs = {}
+        db = dbs[URI] = self._makeDB()
+        root = db._conn._root
+        root['test'] = object()
+        class _TM(object):
+            def abort(self):
+                self._aborted = True
+        tm = _TM()
+        def _db_from_uri(uri):
+            return dbs[uri]
+        cm = self._makeOne(URI, _db_from_uri, '/test/nonesuch')
+        try:
+            with cm(tm):
+                CANNOT_GET_HERE = 1 #pragma NO COVER
+        except AttributeError:
+            pass
+        else:
+            self.fail("Didn't raise") #pragma NO COVER
+        self.assertTrue(tm._aborted)
+        self.assertTrue(db._conn._closed)
+        self.assertTrue(db._closed)
+
+    def test_as_context_manager_wo_existing_target(self):
+        from repoze.postoffice.queue import QueuesFolder
+        URI = 'file:///tmp/Data.fs'
+        dbs = {}
+        db = dbs[URI] = self._makeDB()
+        root = db._conn._root
+        def _db_from_uri(uri):
+            return dbs[uri]
+        cm = self._makeOne(URI, _db_from_uri, '/test')
+        with cm() as found:
+            self.assertTrue(found is root['test'])
+            self.assertTrue(isinstance(found, QueuesFolder))
+
+    def test_as_context_manager_w_longer_path(self):
+        URI = 'file:///tmp/Data.fs'
+        dbs = {}
+        db = dbs[URI] = self._makeDB()
+        root = db._conn._root
+        foo = root['foo'] = {}
+        bar = foo['bar'] = {}
+        baz = bar['baz'] = {}
+        def _db_from_uri(uri):
+            return dbs[uri]
+        cm = self._makeOne(URI, _db_from_uri, '/foo/bar/baz')
+        with cm() as found:
+            self.assertTrue(found is baz)
+        self.assertTrue(db._conn._closed)
+        self.assertTrue(db._closed)
+
+
+class Test_send_mail(unittest.TestCase):
+
+    def _call_fut(self, from_addr, to_addrs, message, smtplib):
+        from repoze.postoffice.api import _send_mail
+        return _send_mail(from_addr, to_addrs, message, smtplib)
+
+    def test_string_message(self):
+        smtp = DummySMTPLib()
+        self._call_fut('me', ['you', 'them'], 'Hello', smtplib=smtp)
+        self.assertEqual(smtp.sent, [('me', ['you', 'them'], 'Hello'),])
+
+    def test_message_object(self):
+        smtp = DummySMTPLib()
+        message = DummyMessage('Hello')
+        self._call_fut('me', ['you', 'them'], message, smtplib=smtp)
+        self.assertEqual(smtp.sent, [('me', ['you', 'them'],
+                                      message.as_string()),])
+
+class Test_message_factory_factory(unittest.TestCase):
+
+    def _call_fut(self, po, wrapped, log):
+        from repoze.postoffice.api import _message_factory_factory
+        return _message_factory_factory(po, wrapped, log)
+
+    def _makePO(self, max_message_size=0):
+        class _PO(object):
+            def __init__(self, max_message_size):
+                self.max_message_size = max_message_size
+        return _PO(max_message_size)
+
+    def _makeMessage(self, fp=None):
+        class _Message(object):
+            def __init__(self, fp):
+                self.fp = fp
+                self.headers = {}
+                self.body = b''
+            def __setitem__(self, key, value):
+                self.headers[key] = value
+            def set_payload(self, payload):
+                self.body = payload
+        return _Message(fp)
+
+    def test_wo_max_message_size(self):
+        po = self._makePO()
+        logger = DummyLogger()
+        factory = self._call_fut(po, self._makeMessage, logger)
+        FP = object()
+        message = factory(FP)
+        self.assertTrue(message.fp is FP)
+        self.assertEqual(len(logger.infos), 0)
+
+    def test_w_filesize_lt_max_message_size(self):
+        from tempfile import NamedTemporaryFile
+        po = self._makePO(1024)
+        logger = DummyLogger()
+        factory = self._call_fut(po, self._makeMessage, logger)
+        with NamedTemporaryFile() as fp:
+            fp.write(b'To: phred@example.com\r\n'
+                     b'From: wylma@example.com\r\n'
+                     b'Subject: This is a Test\r\n'
+                     b'Message-Id: DEADBEEF\r\n'
+                     b'\r\n'
+                     b'MESSAGE BODY'
+                    )
+            fp.flush()
+            fp.seek(0)
+            message = factory(fp)
+            self.assertTrue(message.fp is fp)
+        self.assertFalse('X-Postoffice-Rejected' in message.headers)
+        self.assertEqual(len(logger.infos), 0)
+
+    def test_w_filesize_gt_max_message_size(self):
+        from tempfile import NamedTemporaryFile
+        po = self._makePO(50)
+        logger = DummyLogger()
+        factory = self._call_fut(po, self._makeMessage, logger)
+        with NamedTemporaryFile() as fp:
+            fp.write(b'To: phred@example.com\r\n'
+                     b'From: wylma@example.com\r\n'
+                     b'Subject: This is a Test\r\n'
+                     b'Message-Id: DEADBEEF\r\n'
+                     b'\r\n'
+                     b'MESSAGE BODY'
+                    )
+            fp.flush()
+            fp.seek(0)
+            message = factory(fp)
+        self.assertTrue(message.fp is None)
+        self.assertEqual(len(logger.infos), 1)
+        self.assertTrue(logger.infos[0].startswith(
+                         "Message rejected, exceeds max size limit:"))
+        self.assertEqual(message.headers['From'], 'wylma@example.com')
+        self.assertEqual(message.headers['To'], 'phred@example.com')
+        self.assertEqual(message.headers['Subject'], 'This is a Test')
+        self.assertEqual(message.headers['Message-Id'], 'DEADBEEF')
+        self.assertTrue('X-Postoffice-Rejected' in message.headers)
+        self.assertTrue(b'Message body discarded' in message.body)
+
 class Test_read_message_headers(unittest.TestCase):
+
+    def _call_fut(self, fp):
+        from repoze.postoffice.api import _read_message_headers
+        return _read_message_headers(fp)
+
     def test_it(self):
         message = (
             "From: me\n"
@@ -921,13 +1291,12 @@ class Test_read_message_headers(unittest.TestCase):
         from cStringIO import StringIO
         fp = StringIO(message)
 
-        from repoze.postoffice.api import _read_message_headers as fut
         expected = dict(
             From='me',
             To='you and your mom',
             Subject='Hello',
         )
-        self.assertEqual(fut(fp), expected)
+        self.assertEqual(self._call_fut(fp), expected)
 
 class Test_NullLog(unittest.TestCase):
 

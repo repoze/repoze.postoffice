@@ -12,6 +12,7 @@ from mailbox import NoSuchMailboxError
 import os
 import re
 import shutil
+import smtplib
 import transaction
 
 from repoze.postoffice import filters
@@ -29,6 +30,13 @@ filter_factories = {
 
 MAIN_SECTION = 'post office'
 _marker = object()
+
+try:
+    unicode
+except NameError: #pragma NO COVER Py3k
+    _TEXT = str
+else: #pragma NO COVER Python2
+    _TEXT = unicode
 
 
 class PostOffice(object):
@@ -397,8 +405,10 @@ def _filters_match(filters, message):
     return True
 
 def _ascii_dammit(x):
-    if isinstance(x, str):
-        return x.decode('ascii', 'ignore').encode('ascii')
+    if isinstance(x, bytes):
+        x = x.decode('ascii', 'replace')
+    if isinstance(x, _TEXT):
+        x = x.encode('ascii', 'replace')
     return x
 
 def _log_message(message):
@@ -426,7 +436,9 @@ class _RootContextManagerFactory(object):
         self.path = path.strip('/').split('/')
 
     @contextmanager
-    def __call__(self):
+    def __call__(self, tm=None):
+        if tm is None:
+            tm = transaction
         db = self.db_from_uri(self.uri)
         conn = db.open()
         parent = conn.root()
@@ -440,15 +452,14 @@ class _RootContextManagerFactory(object):
                 parent[name] = folder
             yield folder
         except:
-            transaction.abort()
+            tm.abort()
             raise
         else:
-            transaction.commit()
+            tm.commit()
         finally:
             conn.close()
             db.close()
 
-import smtplib
 def _send_mail(from_addr, to_addrs, message, smtplib=smtplib):
     """
     Sends mail message immediately through SMTP server located on localhost.
