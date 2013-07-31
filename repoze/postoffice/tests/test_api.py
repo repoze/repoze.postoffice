@@ -858,6 +858,7 @@ class Test_get_opt_bytes(unittest.TestCase):
         self.assertRaises(ValueError, self._call_fut, DummyConfig('sixty'))
 
 class Test_send_mail(unittest.TestCase):
+
     def test_string_message(self):
         from repoze.postoffice.api import _send_mail as fut
         smtp = DummySMTPLib()
@@ -871,6 +872,40 @@ class Test_send_mail(unittest.TestCase):
         fut('me', ['you', 'them'], message, smtplib=smtp)
         self.assertEqual(smtp.sent, [('me', ['you', 'them'],
                                       message.as_string()),])
+
+class Test_load_fp(unittest.TestCase):
+
+    def test_w_stringio(self):
+        from io import StringIO
+        from repoze.postoffice.api import _load_fp as fut
+        buf = fut(StringIO('TEST'))
+        self.assertEqual(buf.getvalue(), 'TEST')
+
+    def test_w_bytesio(self):
+        from io import BytesIO
+        from repoze.postoffice.api import _load_fp as fut
+        buf = fut(BytesIO(b'TEST'))
+        self.assertEqual(buf.getvalue(), b'TEST')
+
+    def test_w_file(self):
+        from tempfile import TemporaryFile
+        from repoze.postoffice.api import _load_fp as fut
+        with TemporaryFile() as f:
+            f.write(b'TEST')
+            f.flush()
+            f.seek(0)
+            buf = fut(f)
+        self.assertEqual(buf.getvalue(), b'TEST')
+
+    def test_w_filelike_object(self):
+        from repoze.postoffice.api import _load_fp as fut
+        class FileLike(object):
+            def __init__(self):
+                self.chunks = ['TEST']
+            def read(self, length):
+                return self.chunks.pop(0, '')
+        buf = fut(FileLike())
+        self.assertEqual(buf.getvalue(), 'TEST')
 
 class Test_read_message_headers(unittest.TestCase):
     def test_it(self):
@@ -893,6 +928,27 @@ class Test_read_message_headers(unittest.TestCase):
             Subject='Hello',
         )
         self.assertEqual(fut(fp), expected)
+
+class Test_NullLog(unittest.TestCase):
+
+    def _getTargetClass(self):
+        from repoze.postoffice.api import _NullLog
+        return _NullLog
+
+    def _makeOne(self, *args, **kw):
+        return self._getTargetClass()(*args, **kw)
+
+    def test_info(self):
+        logger = self._makeOne()
+        logger.info('Foo', 'bar')
+
+    def test_warn(self):
+        logger = self._makeOne()
+        logger.warn('Foo', 'bar')
+
+    def test_error(self):
+        logger = self._makeOne()
+        logger.error('Foo', 'bar')
 
 class DummySMTPLib(object):
     def __init__(self):

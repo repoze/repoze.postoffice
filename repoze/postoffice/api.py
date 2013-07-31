@@ -501,7 +501,8 @@ def _read_message_headers(fp):
     return headers
 
 
-class _NullLog(object): # pragma NO COVER
+class _NullLog(object):
+
     def info(self, *args):
         pass
 
