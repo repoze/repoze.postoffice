@@ -2,52 +2,164 @@ from __future__ import with_statement
 
 import unittest
 
+_marker = object()
+
 class TestToHostnameFilter(unittest.TestCase):
-    def _make_one(self, expr):
+
+    def _make_one(self, expr, headers=_marker):
         from repoze.postoffice.filters import ToHostnameFilter
-        return ToHostnameFilter(expr)
+        if headers is _marker:
+            return ToHostnameFilter(expr)
+        return ToHostnameFilter(expr, headers)
 
-    def test_absolute(self):
+    def test_ctor_w_headers(self):
+        fut = self._make_one('example.com;headers=To')
+        self.assertEqual(fut.expr, 'example.com')
+        self.assertEqual(fut.domains, ['example.com'])
+        self.assertEqual(fut.headers, ['To'])
+
+    def test_ctor_w_multiple(self):
+        fut = self._make_one('example.com Another.org')
+        self.assertEqual(fut.expr, 'example.com Another.org')
+        self.assertEqual(fut.domains, ['example.com', 'another.org'])
+
+    def test_ctor_w_unknown_attr(self):
+        self.assertRaises(ValueError,
+                          self._make_one, 'example.com;nonesuch=value')
+
+    def test_absolute_no_headers(self):
         fut = self._make_one('example.com')
-        msg = {}
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@foo.com'
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@foo.example.com'
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@example.com'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({}), None)
+
+    def test_absolute_foreign(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'chris@foo.com'}), None)
+        self.assertEqual(fut({'Cc': 'chris@foo.com'}), None)
+        self.assertEqual(fut({'X-Original-To': 'chris@foo.com'}), None)
+
+    def test_absolute_subdomain(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'chris@foo.example.com'}), None)
+        self.assertEqual(fut({'Cc': 'chris@foo.example.com'}), None)
+        self.assertEqual(fut({'X-Original-To': 'chris@foo.example.com'}), None)
+
+    def test_absolute_hit_bare(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'chris@example.com'}),
                          'to_hostname: chris@example.com matches example.com')
-        msg['To'] = 'Chris <chris@example.com>'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
                          'to_hostname: chris@example.com matches example.com')
-        msg['To'] = 'Chris <chris@example.com'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
                          'to_hostname: chris@example.com matches example.com')
 
-    def test_relative(self):
+    def test_absolute_hit_w_bare(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches example.com')
+
+    def test_absolute_hit_w_bare_only_to(self):
+        fut = self._make_one('example.com', headers=('To',))
+        self.assertEqual(fut({'To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    None)
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    None)
+
+    def test_absolute_hit_w_bare_only_to_via_config(self):
+        fut = self._make_one('example.com;headers=To')
+        self.assertEqual(fut({'To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    None)
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    None)
+
+    def test_absolute_hit_brackets(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'Chris <chris@example.com>'}),
+                         'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'Chris <chris@example.com>'}),
+                         'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'X-Original-To': 'Chris <chris@example.com>'}),
+                         'to_hostname: chris@example.com matches example.com')
+
+    def test_absolute_hit_missing_right_bracket(self):
+        fut = self._make_one('example.com')
+        self.assertEqual(fut({'To': 'Chris <chris@example.com'}),
+                         'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'Chris <chris@example.com'}),
+                         'to_hostname: chris@example.com matches example.com')
+        self.assertEqual(fut({'X-Original-To': 'Chris <chris@example.com'}),
+                         'to_hostname: chris@example.com matches example.com')
+
+    def test_relative_no_headers(self):
         fut = self._make_one('.example.com')
-        msg = {}
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@foo.com'
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@foo.example.com'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({}), None)
+
+    def test_relative_miss_foreign_domain(self):
+        fut = self._make_one('.example.com')
+        self.assertEqual(fut({'To': 'chris@foo.com'}), None)
+        self.assertEqual(fut({'To': 'chris@foo.com'}), None)
+        self.assertEqual(fut({'To': 'chris@foo.com'}), None)
+
+    def test_relative_hit_subdomain(self):
+        fut = self._make_one('.example.com')
+        self.assertEqual(fut({'To': 'chris@foo.example.com'}),
                     'to_hostname: chris@foo.example.com matches .example.com')
-        msg['To'] = 'chris@example.com'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'Cc': 'chris@foo.example.com'}),
+                    'to_hostname: chris@foo.example.com matches .example.com')
+        self.assertEqual(fut({'X-Original-To': 'chris@foo.example.com'}),
+                    'to_hostname: chris@foo.example.com matches .example.com')
+
+    def test_relative_hit_w_bare(self):
+        fut = self._make_one('.example.com')
+        self.assertEqual(fut({'To': 'chris@example.com'}),
                     'to_hostname: chris@example.com matches .example.com')
-        msg['To'] = 'Chris <chris@example.com>'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+
+    def test_relative_hit_w_bare_exclude_cc(self):
+        fut = self._make_one('.example.com', headers=('To', 'X-Original-To'))
+        self.assertEqual(fut({'To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    None)
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+
+    def test_relative_hit_w_bare_exclude_cc_via_config(self):
+        fut = self._make_one('.example.com;headers=To,X-Original-To')
+        self.assertEqual(fut({'To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+        self.assertEqual(fut({'Cc': 'chris@example.com'}),
+                    None)
+        self.assertEqual(fut({'X-Original-To': 'chris@example.com'}),
+                    'to_hostname: chris@example.com matches .example.com')
+
+    def test_relative_hit_w_brackets(self):
+        fut = self._make_one('.example.com')
+        self.assertEqual(fut({'To': 'Chris <chris@example.com>'}),
+                         'to_hostname: chris@example.com matches .example.com')
+        self.assertEqual(fut({'Cc': 'Chris <chris@example.com>'}),
+                         'to_hostname: chris@example.com matches .example.com')
+        self.assertEqual(fut({'X-Original-To': 'Chris <chris@example.com>'}),
                          'to_hostname: chris@example.com matches .example.com')
 
 
     def test_case_insensitive(self):
         fut = self._make_one('example.com')
-        msg = {}
-        self.assertEqual(fut(msg), None)
-        msg['To'] = 'chris@Example.com'
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'To': 'chris@Example.com'}),
+                         'to_hostname: chris@Example.com matches example.com')
+        self.assertEqual(fut({'Cc': 'chris@Example.com'}),
+                         'to_hostname: chris@Example.com matches example.com')
+        self.assertEqual(fut({'X-Original-To': 'chris@Example.com'}),
                          'to_hostname: chris@Example.com matches example.com')
 
 
@@ -63,25 +175,16 @@ class TestToHostnameFilter(unittest.TestCase):
 
     def test_multiple_hosts(self):
         fut = self._make_one('example1.com .example2.com example3.com')
-        msg = {'To': 'chris@foo.example2.com'}
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'To': 'chris@foo.example2.com'}),
             'to_hostname: chris@foo.example2.com matches .example2.com')
-        msg = {'To': 'chris@foo.example1.com'}
-        self.assertEqual(fut(msg), None)
-        msg = {'To': 'chris@example1.com'}
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({'To': 'chris@foo.example1.com'}), None)
+        self.assertEqual(fut({'To': 'chris@example1.com'}),
             'to_hostname: chris@example1.com matches example1.com')
 
     def test_multiple_addrs(self):
         fut = self._make_one('example.com')
-        msg = {'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
-        self.assertEqual(fut(msg),
-                         'to_hostname: barney@example.com matches example.com')
-
-    def test_match_cc(self):
-        fut = self._make_one('example.com')
-        msg = {'Cc': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}
-        self.assertEqual(fut(msg),
+        self.assertEqual(fut({
+            'To': 'Fred <fred@exemplar.com>, Barney <barney@example.com>'}),
                          'to_hostname: barney@example.com matches example.com')
 
     def test_match_to_or_cc(self):

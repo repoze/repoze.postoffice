@@ -5,18 +5,27 @@ import re
 
 from repoze.postoffice.message import decode_header
 
+_STANDARD_TO_HEADERS = ('To', 'Cc', 'X-Original-To')
 
 class ToHostnameFilter(object):
+    """Test the hostname of the email address in the specified message headers.
     """
-    Matches the hostname of the email address in the 'To:' header of an email
-    message.
-    """
-    def __init__(self, expr):
+    def __init__(self, expr, headers=_STANDARD_TO_HEADERS):
+        if ';' in expr:
+            expr, attrs = expr.split(';', 1)
+            for a_expr in attrs.split(';'):
+                name, value = [x.strip() for x in a_expr.split('=')]
+                if name == 'headers':
+                    headers = [x.strip() for x in value.split(',')]
+                else:
+                    raise ValueError('Unknown config attribute: %s' % name)
         self.expr = expr
+        self.domains = expr.lower().split()
+        self.headers = headers
 
     def __call__(self, message):
         addrs = []
-        for header in 'To', 'Cc':
+        for header in self.headers:
             value = message.get(header)
             if not value:
                 continue
@@ -33,11 +42,11 @@ class ToHostnameFilter(object):
                 continue
             hostname = addr.split('@')[1].lower()
 
-            for expr in self.expr.lower().split():
-                if expr.startswith('.') and hostname.endswith(expr[1:]):
-                    return 'to_hostname: %s matches %s' % (addr, expr)
-                if hostname == expr:
-                    return 'to_hostname: %s matches %s' % (addr, expr)
+            for domain in self.domains:
+                if domain.startswith('.') and hostname.endswith(domain[1:]):
+                    return 'to_hostname: %s matches %s' % (addr, domain)
+                if hostname == domain:
+                    return 'to_hostname: %s matches %s' % (addr, domain)
 
         return None
 

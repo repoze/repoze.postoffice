@@ -101,12 +101,28 @@ a queue a message must match all filters for that queue.
 At the time of the following filters are implemented:
 
 - `to_hostname`: This filter matches the hostname of the email address in the
-  'To' or 'CC' headers of the message. Hostnames which beging with a period will
+  spcified headers of the message. Hostnames which beging with a period will
   match any hostname that ends with the specified name, ie '.example.com'
   matches 'example.com' and 'app.example.com'. If the hostname does not begin
   with a period it must match exactly. Multiple hostnames, delimited by
-  whitespace, may be listed. If multiple hostnames are used, an incoming message
-  need match only one.
+  whitespace, may be listed. If multiple hostnames are used, an incoming
+  message need match only one.
+
+  By default, this filter matches against the following headers:  ``To``,
+  ``Cc``, and ``X-Original-To``.  You can change this default by appending
+  ``;headers=<comma-separaated-list>`` to the value, e.g.:
+
+.. code-block:: ini
+
+    [queue:only_bcc]
+    filters =
+        to_hostname: example.com;headers=X-Original-To
+
+.. note::
+
+   The ``X-Original-To`` header is set by Postfix to match the envelope
+   recipient;  considering it for a match allows accepting messages for which
+   the domain is BCC'ed or delivered from a mailing list.
 
 - `header_regexp`: This filter allows the matching of arbitrary regular
   expressions against the headers of a message.  Only a single regular

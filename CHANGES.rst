@@ -1,6 +1,16 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
+Unreleased
+----------
+
+- Enable configuration of the headers considred by the ``to_hostname`` filter.
+
+- Update the headers considered by in the ``to_hostname`` filter to
+  include ``X-Original-To`` by default.  This header is set by Postfix
+  to match the envelope recipient;  including it allows matching messages
+  for which the domain is BCC'ed or delivered from a mailing list.
+
 0.22 (2013-07-26)
 -----------------
 
