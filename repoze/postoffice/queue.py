@@ -1,20 +1,19 @@
+from datetime import datetime
+from email.generator import Generator
+from email.message import Message as StdlibMessage
+from email.parser import Parser
+from email.utils import parsedate
+from time import time
+
 from BTrees.IOBTree import IOBTree
 from BTrees.OOBTree import OOBTree
 from persistent import Persistent
 from persistent.dict import PersistentDict
 from persistent.list import PersistentList
+from repoze.zodbconn.uri import db_from_uri
 from ZODB.blob import Blob
 
-import email.generator
-import email.message
-import email.parser
-from email.utils import parsedate
-
-from repoze.postoffice.message import Message
-from repoze.zodbconn.uri import db_from_uri
-
-import datetime
-import time
+from .message import Message
 
 
 def open_queue(db_or_uri, queue_name, path='postoffice'):
@@ -69,7 +68,7 @@ class Queue(Persistent):
         Add a message to the queue.
         """
         id = message['Message-Id']
-        self._message_ids[message['Message-Id']] = time.time()
+        self._message_ids[message['Message-Id']] = time()
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
@@ -83,7 +82,7 @@ class Queue(Persistent):
             return False
 
         # Don't grow message_ids forever--prune entries old than 24 hours
-        cutoff = time.time() - 24 * 60 * 60
+        cutoff = time() - 24 * 60 * 60
         for id, timestamp in message_ids.items():
             if timestamp < cutoff:
                 del message_ids[id]
@@ -102,9 +101,9 @@ class Queue(Persistent):
         if date is not None:
             date = parsedate(date)
         if date is not None:
-            date = datetime.datetime(*date[:6])
+            date = datetime(*date[:6])
         else:
-            date = datetime.datetime.now()
+            date = datetime.now()
 
         if headers is None:
             headers = {}
@@ -165,7 +164,7 @@ class Queue(Persistent):
             if 'Date' in message:
                 date = message['Date']
             else:
-                date = datetime.datetime.now().ctime()
+                date = datetime.now().ctime()
             bounce_to = message['To']
             subject = 'Your message to %s has bounced.' % bounce_to
             bounce_message = Message()
@@ -221,7 +220,7 @@ class Queue(Persistent):
             if 'Date' in message:
                 date = message['Date']
             else:
-                date = datetime.datetime.now().ctime()
+                date = datetime.now().ctime()
             notice['X-Postoffice'] = 'Bounced'
             body = _quarantine_notice_body % (date, message['To'])
             notice.set_payload(body.encode('UTF-8'), 'UTF-8')
@@ -385,16 +384,16 @@ class _QueuedMessage(Persistent):
     _v_message = None  # memcache message once loaded
 
     def __init__(self, message):
-        assert isinstance(message, email.message.Message), "Not a message."
+        assert isinstance(message, StdlibMessage), "Not a message."
         self._v_message = message   # transient attribute
         self._blob_file = blob = Blob()
         outfp = blob.open('w')
-        email.generator.Generator(outfp).flatten(message)
+        Generator(outfp).flatten(message)
         outfp.close()
 
     def get(self):
         if self._v_message is None:
-            parser = email.parser.Parser(Message)
+            parser = Parser(Message)
             self._v_message = parser.parse(self._blob_file.open())
         return self._v_message
 
