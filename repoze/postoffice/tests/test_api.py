@@ -142,15 +142,22 @@ class TestAPI(unittest.TestCase):
         filters = queue['filters']
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
-        def p(s, additional_flags=0):
-            return (s, re.compile(s, additional_flags))
-        self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
-        self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
-                                              p(u'Subject: You are nice')])
-        self.assertEqual(filters[3].regexps, [p(u'I like you', re.MULTILINE),])
-        self.assertEqual(filters[4].regexps, [p(u'Nice to meet you',
-                                                re.MULTILINE),
-                                              p(u'You are nice', re.MULTILINE)])
+        def _compare_re(lhs, rhs):
+            assert ((lhs.pattern == rhs.pattern) and
+                    (lhs.flags == rhs.flags)
+                   )
+        _compare_re(filters[1].regexps[0][1],
+                    re.compile(u'Subject: You are nice'))
+        _compare_re(filters[2].regexps[0][1],
+                    re.compile(u'Subject: Nice to meet you'))
+        _compare_re(filters[2].regexps[1][1],
+                    re.compile(u'Subject: You are nice'))
+        _compare_re(filters[3].regexps[0][1],
+                    re.compile(u'I like you', re.MULTILINE))
+        _compare_re(filters[4].regexps[0][1],
+                    re.compile(u'Nice to meet you', re.MULTILINE))
+        _compare_re(filters[4].regexps[1][1],
+                    re.compile(u'You are nice', re.MULTILINE))
 
     def test_ctor_global_reject_filters(self):
         import pkg_resources
@@ -176,15 +183,22 @@ class TestAPI(unittest.TestCase):
         filters = po.reject_filters
         self.assertEqual(len(filters), 5)
         self.assertEqual(filters[0].expr, 'exampleA.com')
-        def p(s, additional_flags=0):
-            return (s, re.compile(s, additional_flags))
-        self.assertEqual(filters[1].regexps, [p(u'Subject: You are nice')])
-        self.assertEqual(filters[2].regexps, [p(u'Subject: Nice to meet you'),
-                                              p(u'Subject: You are nice')])
-        self.assertEqual(filters[3].regexps, [p(u'I like you', re.MULTILINE)])
-        self.assertEqual(filters[4].regexps, [p(u'Nice to meet you',
-                                                re.MULTILINE),
-                                              p(u'You are nice', re.MULTILINE)])
+        def _compare_re(lhs, rhs):
+            assert ((lhs.pattern == rhs.pattern) and
+                    (lhs.flags == rhs.flags)
+                   )
+        _compare_re(filters[1].regexps[0][1],
+                    re.compile(u'Subject: You are nice'))
+        _compare_re(filters[2].regexps[0][1],
+                    re.compile(u'Subject: Nice to meet you'))
+        _compare_re(filters[2].regexps[1][1],
+                    re.compile(u'Subject: You are nice'))
+        _compare_re(filters[3].regexps[0][1],
+                    re.compile(u'I like you', re.MULTILINE))
+        _compare_re(filters[4].regexps[0][1],
+                    re.compile(u'Nice to meet you', re.MULTILINE))
+        _compare_re(filters[4].regexps[1][1],
+                    re.compile(u'You are nice', re.MULTILINE))
 
     def test_ctor_bad_filtertype(self):
         self.assertRaises(ValueError, self._make_one, StringIO(
@@ -886,7 +900,7 @@ class Test_load_fp(unittest.TestCase):
 
     def test_w_stringio(self):
         from io import StringIO
-        buf = self._call_fut(StringIO('TEST'))
+        buf = self._call_fut(StringIO(u'TEST'))
         self.assertEqual(buf.getvalue(), 'TEST')
 
     def test_w_bytesio(self):
