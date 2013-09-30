@@ -1,6 +1,15 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
+Unreleased
+----------
+
+- Accept messages as non-duplicates which have the same ``Message-ID`` headers,
+  but different ``X-Original-To`` headers.  Rationale:  on systems which
+  add ``X-Original-To`` (postfix adds it by default), its presence indicates
+  delivery to a separate user; we should allow it to be queued for attempted
+  processing.
+
 0.23 (2013-07-31)
 -----------------
 

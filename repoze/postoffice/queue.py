@@ -68,7 +68,8 @@ class Queue(Persistent):
         Add a message to the queue.
         """
         id = message['Message-Id']
-        self._message_ids[message['Message-Id']] = time()
+        orig_to = message['X-Original-To']
+        self._message_ids[message['Message-Id']] = (time(), orig_to)
         message = _QueuedMessage(message)
         id = _new_id(self._messages)
         self._messages[id] = message
@@ -83,11 +84,16 @@ class Queue(Persistent):
 
         # Don't grow message_ids forever--prune entries old than 24 hours
         cutoff = time() - 24 * 60 * 60
-        for id, timestamp in message_ids.items():
+        for id, timestamp_orig_to in message_ids.items():
+            timestamp, orig_to = timestamp_orig_to
             if timestamp < cutoff:
                 del message_ids[id]
 
-        return message['Message-Id'] in message_ids
+        timestamp_orig_to = message_ids.get(message['Message-Id'])
+        if timestamp_orig_to is None:
+            return False
+        _, orig_to = timestamp_orig_to
+        return orig_to == message.get('X-Original-To')
 
     def collect_frequency_data(self, message, headers=None):
         """

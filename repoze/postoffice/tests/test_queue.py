@@ -48,12 +48,30 @@ class TestQueue(unittest.TestCase):
         queue.add(message)
         self.failUnless(queue.is_duplicate(message))
 
+    def test_is_duplicate_same_message_id_same_x_orig_to(self):
+        import time
+        queue = self._make_one()
+        message = DummyMessage('one')
+        timestamp = time.time()
+        queue._message_ids[message['Message-Id']] = (timestamp,
+                                                     'phred@example.com')
+        self.failUnless(queue.is_duplicate(message))
+
+    def test_is_duplicate_same_message_id_different_x_orig_to(self):
+        import time
+        queue = self._make_one()
+        message = DummyMessage('one')
+        timestamp = time.time()
+        queue._message_ids[message['Message-Id']] = (timestamp,
+                                                     'bharney@example.com')
+        self.failIf(queue.is_duplicate(message))
+
     def test_is_duplicate_past_cutoff(self):
         import time
         queue = self._make_one()
         message = DummyMessage('one')
         timestamp = time.time() - 30 * 60 * 60
-        queue._message_ids[message['Message-Id']] = timestamp
+        queue._message_ids[message['Message-Id']] = (timestamp, None)
         self.failIf(queue.is_duplicate(message))
 
     def test_bounce_generic_message(self):
@@ -515,6 +533,7 @@ class DummyMessage(Message):
         Message.__init__(self)
         self['From'] = 'Harry'
         self['Message-Id'] = '12345'
+        self['X-Original-To'] = 'phred@example.com'
         self.set_payload(body)
 
     def __eq__(self, other):
@@ -546,10 +565,6 @@ class DummyDatetime(object):
 
     def __call__(self, *args, **kw):
         return datetime(*args, **kw)
-
-    @property
-    def datetime(self):
-        return self
 
     def now(self):
         return self._now
