@@ -48,6 +48,14 @@ class TestQueue(unittest.TestCase):
         queue.add(message)
         self.failUnless(queue.is_duplicate(message))
 
+    def test_is_duplicate_wo_o_orig_to_in_message_ids_entry(self):
+        import time
+        queue = self._make_one()
+        message = DummyMessage('one')
+        timestamp = time.time()
+        queue._message_ids[message['Message-Id']] = timestamp
+        self.failIf(queue.is_duplicate(message))
+
     def test_is_duplicate_same_message_id_same_x_orig_to(self):
         import time
         queue = self._make_one()

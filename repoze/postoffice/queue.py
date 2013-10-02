@@ -85,14 +85,20 @@ class Queue(Persistent):
         # Don't grow message_ids forever--prune entries old than 24 hours
         cutoff = time() - 24 * 60 * 60
         for id, timestamp_orig_to in message_ids.items():
-            timestamp, orig_to = timestamp_orig_to
+            try:
+               timestamp, orig_to = timestamp_orig_to
+            except TypeError: #BBB
+               timestamp = timestamp_orig_to
             if timestamp < cutoff:
                 del message_ids[id]
 
         timestamp_orig_to = message_ids.get(message['Message-Id'])
         if timestamp_orig_to is None:
             return False
-        _, orig_to = timestamp_orig_to
+        try:
+           _, orig_to = timestamp_orig_to
+        except TypeError: # BBB
+           orig_to = None
         return orig_to == message.get('X-Original-To')
 
     def collect_frequency_data(self, message, headers=None):
