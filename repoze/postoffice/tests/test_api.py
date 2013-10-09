@@ -599,6 +599,51 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(A[0]['X-Postoffice-Rejected'], 'Throttled')
         self.assertEqual(len(log.infos), 3)
 
+    def test_throttle_user_instant_freq_but_BCC(self):
+        log = DummyLogger()
+        # None of these messages has 'X-Original-To' matching 'To' or 'CC'
+        msg1 = DummyMessage("one")
+        msg1['To'] = 'dummy@exampleA.com'
+        msg1['CC'] = 'dummy2@exampleA.com'
+        msg1['X-Original-To'] = 'another@exampleA.com'
+        msg1['Date'] = 'Wed, 12 May 2010 02:42:00'
+        msg2 = DummyMessage("one")
+        msg2['To'] = 'dummy@exampleA.com'
+        msg2['CC'] = 'dummy2@exampleA.com'
+        msg2['X-Original-To'] = 'yet_another@exampleA.com'
+        msg2['Date'] = 'Wed, 12 May 2010 02:42:00'
+        msg3 = DummyMessage("one")
+        msg3['To'] = 'whoever@anotherdomain.com'
+        msg3['CC'] = 'dummy2@exampleA.com'
+        msg3['X-Original-To'] = 'another@exampleA.com'
+        msg3['Date'] = 'Wed, 12 May 2010 02:42:00'
+        queues = {}
+
+        po = self._make_one(StringIO(
+            "[post office]\n"
+            "zodb_uri = filestorage:test.db\n"
+            "maildir = test/Maildir\n"
+            "ooo_loop_frequency = 0.25\n"
+            "[queue:A]\n"
+            "filters =\n"
+            "\tto_hostname:exampleA.com\n"
+            ),
+            queues=queues,
+            messages=[msg1, msg2, msg3]
+            )
+        po.reconcile_queues()
+        A = queues['A']
+        A.instant_freq = 1
+        po.import_messages(log)
+
+        self.assertEqual(len(self.messages), 0)
+        self.assertEqual(len(A), 3)
+        self.assertEqual(A[0].get('X-Postoffice-Rejected'), None)
+        self.assertEqual(A[1].get('X-Postoffice-Rejected'), None)
+        self.assertEqual(A[2].get('X-Postoffice-Rejected'), None)
+        self.assertEqual(len(log.infos), 4)
+        self.assertFalse(A.throttled)
+
     def test_throttle_user_instant_freq(self):
         import datetime
         log = DummyLogger()

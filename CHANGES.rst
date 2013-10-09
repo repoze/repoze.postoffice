@@ -4,6 +4,9 @@
 Unreleased
 ----------
 
+- Avoid throttling BCC'ed messages (those where ``X-Original-To`` is not
+  present in ``To`` or ``CC``), because they can't be part of loops.
+
 - Accept messages as non-duplicates which have the same ``Message-ID`` headers,
   but different ``X-Original-To`` headers.  Rationale:  on systems which
   add ``X-Original-To`` (postfix adds it by default), its presence indicates

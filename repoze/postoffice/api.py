@@ -281,6 +281,12 @@ class PostOffice(object):
 
         # Loop Detection
         user = message['From']
+        header_tos = message.get_all('To', []) + message.get_all('CC', [])
+        orig_to = message.get('X-Original-To')
+        if orig_to is None:
+            is_bcc = False
+        else:
+            is_bcc = len([x for x in header_tos if orig_to in x]) == 0
         now = message.get('Date')
         if now is not None:
             now = parsedate(now)
@@ -302,7 +308,11 @@ class PostOffice(object):
                      _log_message(message))
             message['X-Postoffice-Rejected'] = 'Throttled'
 
-        elif freq:
+        elif freq and not is_bcc:
+            # We don't throttle BCC's because they cannot be loops.
+            # The most common case for them is Exchange-driven alias
+            # lists.
+
             # If instanteous or average frequency exceeds limit,
             # throttle user. For average frequency, use interval that
             # is 4 times the inverse of the the freqency. IE, if
