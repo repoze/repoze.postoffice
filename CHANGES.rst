@@ -1,8 +1,8 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
-Unreleased
-----------
+0.24 (2013-10-10)
+-----------------
 
 - Avoid throttling BCC'ed messages (those where ``X-Original-To`` is not
   present in ``To`` or ``CC``), because they can't be part of loops.
