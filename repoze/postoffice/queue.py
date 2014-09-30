@@ -24,11 +24,16 @@ def open_queue(db_or_uri, queue_name, path='postoffice'):
         db = db_or_uri
         closer_db = None
     conn = db.open()
-    queues = conn.root()
+    closer = _Closer(closer_db, conn)
+    return find_queue(conn.root(), queue_name, path), closer
+
+
+def find_queue(dbroot, queue_name, path='postoffice'):
+    queues = dbroot
     for name in path.strip('/').split('/'):
         queues = queues[name]
-    closer = _Closer(closer_db, conn)
-    return queues[queue_name], closer
+    return queues[queue_name]
+
 
 class _Closer(object):
     def __init__(self, db, conn):

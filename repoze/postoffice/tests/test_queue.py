@@ -535,6 +535,14 @@ class Test_open_queue(unittest.TestCase):
         self.assertRaises(KeyError, self._call_fut, 'two')
         self.failUnless(self.db.closed)
 
+
+class Test_find_queue(unittest.TestCase):
+    def test_it(self):
+        from repoze.postoffice.queue import find_queue
+        db = DummyDB({}, {'one': 'foo'})
+        self.assertEqual(find_queue(db.root(), 'one'), 'foo')
+
+
 from repoze.postoffice.message import Message
 class DummyMessage(Message):
     def __init__(self, body=None):

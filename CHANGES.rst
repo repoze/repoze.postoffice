@@ -1,6 +1,12 @@
 ``repoze.postoffice`` Changelog
 ===============================
 
+0.25 (2014-09-30)
+-----------------
+
+- Introduce the 'find_queue' function as an alternative to 'open_queue' for 
+  applications that will manage their own database connection.
+
 0.24 (2013-10-10)
 -----------------
 
